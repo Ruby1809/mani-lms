@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Thống kê - MANI Learning Hub{% endblock %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <h2 style="color:var(--primary);margin:0;font-size:20px">📊 Thống kê & Báo cáo</h2>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-primary">📥 Xuất CSV</a>
+</div>
+<div class="card" style="margin-bottom:20px">
+    <h3 style="color:var(--primary);margin-bottom:14px;font-size:16px">Thống kê theo phòng ban</h3>
+    {% for dept, stat in dept_stats.items() %}{% if stat.users > 0 %}
+    <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px"><span style="font-weight:600">{{ dept }} ({{ stat.users }})</span><span style="color:var(--secondary);font-weight:600">{{ stat.rate }}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ stat.rate }}%"></div></div>
+        <div style="font-size:11px;color:#888;margin-top:3px">{{ stat.passed }} đạt / {{ stat.attempts }} lượt</div>
+    </div>
+    {% endif %}{% endfor %}
+</div>
+<div class="card" style="margin-bottom:20px">
+    <h3 style="color:var(--primary);margin-bottom:14px;font-size:16px">Lịch sử đào tạo</h3>
+    <div class="form-group"><select id="uf" class="form-control" onchange="filterU(this.value)" style="max-width:400px"><option value="">-- Chọn người dùng --</option>{% for u in users_all %}<option value="{{ u['email'] }}">{{ u['name'] }} ({{ u['department'] }})</option>{% endfor %}</select></div>
+    <div class="table-wrap"><table id="rt"><thead><tr><th>Người dùng</th><th>Phòng ban</th><th>Khóa học</th><th>Điểm</th><th>Kết quả</th><th>Ngày</th></tr></thead><tbody>
+        {% for r in results %}<tr data-e="{{ r['user_email'] }}"><td><strong>{{ r['name'] or r['user_email'] }}</strong></td><td><span class="tag">{{ r['department'] or '-' }}</span></td><td>{{ r['title_vi'] or r['title_en'] or '-' }}</td><td><strong>{{ r['score'] }}/{{ r['total'] }}</strong></td><td>{% if r['passed'] %}<span class="badge badge-success">✓</span>{% else %}<span class="badge badge-danger">✗</span>{% endif %}</td><td style="font-size:11px">{{ r['completed_at'][:16] }}</td></tr>{% endfor %}
+        {% if results|length==0 %}<tr><td colspan="6" style="text-align:center;color:#888">Chưa có dữ liệu.</td></tr>{% endif %}
+    </tbody></table></div>
+</div>
+<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:14px;font-size:16px">Thống kê theo khóa học</h3>
+    {% for c in courses %}
+    {% set cr=[] %}{% for r in results %}{% if r['course_id']==c['id'] %}{% set _=cr.append(r) %}{% endif %}{% endfor %}
+    {% set cp=[] %}{% for r in cr %}{% if r['passed'] %}{% set _=cp.append(r) %}{% endif %}{% endfor %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;flex-wrap:wrap;gap:6px">
+        <div><span class="tag">{{ c['category'] }}</span> <strong style="color:var(--primary);margin-left:6px;font-size:13px">{{ c['title_vi'] or c['title_en'] }}</strong></div>
+        <div style="display:flex;gap:10px;font-size:12px"><span>📝 {{ cr|length }}</span><span style="color:var(--success)">✓ {{ cp|length }}</span><span style="color:#888">{% if cr|length>0 %}{{ (cp|length/cr|length*100)|round }}%{% else %}0%{% endif %}</span></div>
+    </div>
+    {% endfor %}
+</div>
+<script>function filterU(e){document.querySelectorAll('#rt tbody tr').forEach(r=>{r.style.display=!e||r.dataset.e===e?'':'none'})}</script>
+{% endblock %}

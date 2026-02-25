@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Hồ sơ - MANI Learning Hub{% endblock %}
+{% block content %}
+<h2 style="color:var(--primary);margin-bottom:16px">👤 Hồ sơ cá nhân / My Profile</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+<!-- LEFT: Profile info -->
+<div class="card">
+    <div style="text-align:center;margin-bottom:16px">
+        <div style="width:80px;height:80px;border-radius:50%;background:var(--yellow);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin:0 auto;overflow:hidden">
+            {% if user['avatar_url'] %}<img src="{{ user['avatar_url'] }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ user['name'][0] }}{% endif %}
+        </div>
+        <h3 style="color:var(--primary);margin-top:8px">{{ user['name'] }}</h3>
+        <p style="color:#888;font-size:12px">{{ user['email'] }}</p>
+        <div style="display:flex;gap:4px;justify-content:center;margin-top:6px;flex-wrap:wrap">
+            <span class="badge badge-{{ user['role'] }}">{{ user['role'] }}</span>
+            <span class="tag">{{ user['department'] or '' }}</span>
+            {% if user['team'] and user['team'] != 'N/A' %}<span class="tag" style="background:rgba(255,225,0,.2);color:var(--primary)">{{ user['team'] }}</span>{% endif %}
+        </div>
+        <p style="color:#555;font-size:12px;margin-top:4px">{{ user['job_title'] or '' }} • {{ user['job_level'] or '' }}</p>
+    </div>
+    <form method="POST">
+        <input type="hidden" name="action" value="update">
+        <div class="form-group"><label>Họ tên *</label><input type="text" name="name" class="form-control" value="{{ user['name'] }}" required></div>
+        <div class="form-group"><label>Avatar URL (link ảnh)</label><input type="url" name="avatar_url" class="form-control" value="{{ user['avatar_url'] or '' }}" placeholder="https://..."></div>
+        <div class="form-row">
+            <div class="form-group"><label>Department</label>
+                <select name="department" class="form-control">{% for d in DEPARTMENTS %}<option value="{{ d }}" {{ 'selected' if user['department']==d }}>{{ d }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label>Team</label>
+                <select name="team" class="form-control">{% for t in TEAMS %}<option value="{{ t }}" {{ 'selected' if (user['team'] or 'N/A')==t }}>{{ t }}</option>{% endfor %}</select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Job Title</label>
+                <select name="job_title" class="form-control">{% for j in JOB_TITLES %}<option value="{{ j }}" {{ 'selected' if (user['job_title'] or 'Other')==j }}>{{ j }}</option>{% endfor %}</select>
+            </div>
+            <div class="form-group"><label>Job Level</label>
+                <select name="job_level" class="form-control">{% for l in JOB_LEVELS %}<option value="{{ l }}" {{ 'selected' if (user['job_level'] or 'Staff')==l }}>{{ l }}</option>{% endfor %}</select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Cập nhật hồ sơ</button>
+    </form>
+    <hr style="margin:16px 0;border:none;border-top:1px solid #eee">
+    <h4 style="color:var(--primary);font-size:14px;margin-bottom:10px">🔒 Đổi mật khẩu</h4>
+    <form method="POST">
+        <input type="hidden" name="action" value="change_password">
+        <div class="form-group"><label>Mật khẩu cũ</label><input type="password" name="old_password" class="form-control" required></div>
+        <div class="form-group"><label>Mật khẩu mới (≥4 ký tự)</label><input type="password" name="new_password" class="form-control" required minlength="4"></div>
+        <button type="submit" class="btn btn-outline btn-sm">🔒 Đổi mật khẩu</button>
+    </form>
+</div>
+<!-- RIGHT: Signature -->
+<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:10px;font-size:16px">✍️ Chữ ký điện tử / Digital Signature</h3>
+    <p style="color:#888;font-size:12px;margin-bottom:12px">Chữ ký này sẽ hiển thị trên chứng chỉ nếu bạn là Trainer.</p>
+    {% if user['signature_data'] %}
+    <div style="text-align:center;margin-bottom:12px;padding:16px;background:#f9f9f9;border-radius:8px">
+        <p style="font-size:11px;color:#888;margin-bottom:6px">Chữ ký hiện tại:</p>
+        <img src="{{ user['signature_data'] }}" style="max-width:300px;max-height:100px" alt="Signature">
+        <p style="font-weight:600;color:var(--primary);margin-top:6px">{{ user['name'] }}</p>
+    </div>
+    {% endif %}
+    <canvas id="sig-canvas" width="400" height="160" style="border:2px solid #ddd;border-radius:10px;cursor:crosshair;width:100%;touch-action:none;background:#fff"></canvas>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button onclick="clearSig()" class="btn btn-outline btn-sm">🗑 Xóa</button>
+        <button onclick="saveSig()" class="btn btn-primary btn-sm">💾 Lưu chữ ký</button>
+    </div>
+    <form method="POST" id="sig-form" style="display:none">
+        <input type="hidden" name="action" value="save_signature">
+        <input type="hidden" name="signature_data" id="sig-data">
+    </form>
+</div>
+</div>
+<style>@media(max-width:768px){div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}}</style>
+<script>
+const c=document.getElementById('sig-canvas'),ctx=c.getContext('2d');
+let drawing=false,lastX=0,lastY=0;
+ctx.strokeStyle='#003047';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+
+function getPos(e){
+    const r=c.getBoundingClientRect();
+    const t=e.touches?e.touches[0]:e;
+    return {x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height)};
+}
+c.addEventListener('mousedown',e=>{drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y});
+c.addEventListener('mousemove',e=>{if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y});
+c.addEventListener('mouseup',()=>drawing=false);c.addEventListener('mouseleave',()=>drawing=false);
+c.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;const p=getPos(e);lastX=p.x;lastY=p.y},{passive:false});
+c.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y},{passive:false});
+c.addEventListener('touchend',()=>drawing=false);
+
+function clearSig(){ctx.clearRect(0,0,c.width,c.height)}
+function saveSig(){
+    const d=c.toDataURL('image/png');
+    document.getElementById('sig-data').value=d;
+    document.getElementById('sig-form').submit();
+}
+</script>
+{% endblock %}

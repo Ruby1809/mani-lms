@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Quản trị - MANI Learning Hub{% endblock %}
+{% block content %}
+<h2 style="color:var(--primary);margin-bottom:16px">⚙️ Quản trị / Admin Panel</h2>
+<div class="stats-grid">
+    <div class="stat-card" style="border-top:4px solid var(--primary)"><div class="emoji">👥</div><div class="num">{{ stats.total_users }}</div><div class="label">Người dùng</div></div>
+    <div class="stat-card" style="border-top:4px solid var(--secondary)"><div class="emoji">📚</div><div class="num">{{ stats.total_courses }}</div><div class="label">Khóa học</div></div>
+    <div class="stat-card" style="border-top:4px solid #28A745"><div class="emoji">🏆</div><div class="num">{{ stats.total_certs }}</div><div class="label">Chứng chỉ</div></div>
+    <div class="stat-card" style="border-top:4px solid var(--yellow)"><div class="emoji">📝</div><div class="num">{{ stats.total_attempts }}</div><div class="label">Lượt thi</div></div>
+</div>
+<div class="tabs">
+    <a href="#users" class="active" onclick="showAT('users',this)" id="tl-users">👥 Người dùng</a>
+    <a href="#content" onclick="showAT('content',this)" id="tl-content">📋 Nội dung</a>
+    <a href="#emails" onclick="showAT('emails',this)" id="tl-emails">📧 Email & SMTP</a>
+    <a href="#remind" onclick="showAT('remind',this)" id="tl-remind">🔔 Nhắc nhở</a>
+</div>
+
+<!-- USERS TAB -->
+<div id="at-users" class="atab">
+<div class="card" style="padding:0;overflow:hidden"><div class="table-wrap"><table>
+    <thead><tr><th>Tên</th><th>Email</th><th>Department</th><th>Team</th><th>Vai trò</th><th>Xác nhận</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}<tr>
+        <td><strong>{{ u['name'] }}</strong><br><span style="font-size:10px;color:#888">{{ u['job_title'] or '' }} • {{ u['job_level'] or '' }}</span></td>
+        <td style="font-size:11px;word-break:break-all">{{ u['email'] }}</td>
+        <td><span class="tag">{{ u['department'] or '' }}</span></td>
+        <td style="font-size:11px">{{ u['team'] or 'N/A' }}</td>
+        <td><span class="badge badge-{{ u['role'] }}">{{ u['role'] }}</span></td>
+        <td>{% if u['verified'] %}<span class="badge badge-success">✓</span>{% else %}<span class="badge badge-warning">⏳</span>{% endif %}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="openEU({{ u['id'] }},'{{ u['name']|replace("'","") }}','{{ u['department'] or '' }}','{{ u['team'] or 'N/A' }}','{{ u['job_title'] or 'Other' }}','{{ u['job_level'] or 'Staff' }}','{{ u['role'] }}','{{ u['status'] or 'active' }}')">✏️</button></td>
+    </tr>{% endfor %}
+    </tbody>
+</table></div></div>
+</div>
+
+<!-- CONTENT TAB -->
+<div id="at-content" class="atab" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 style="color:var(--primary);font-size:16px">Quản lý khóa học</h3>
+        <a href="{{ url_for('new_course') }}" class="btn btn-primary">➕ Thêm khóa học</a>
+    </div>
+    {% for c in courses %}
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px">
+        <div style="flex:1;min-width:180px">
+            <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap">
+                <span class="tag">{{ c['category'] }}</span>
+                <span class="badge badge-info" style="font-size:10px">{{ q_counts.get(c['id'],0) }} câu</span>
+            </div>
+            <h4 style="margin:4px 0;color:var(--primary);font-size:14px">{{ c['title_vi'] or c['title_en'] }}</h4>
+            {% set groups = c['target_groups'] | from_json %}
+            {% if groups %}<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">{% for g in groups %}<span style="font-size:9px;background:#f0f0f0;padding:1px 6px;border-radius:8px;color:#666">{{ g }}</span>{% endfor %}</div>{% endif %}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <a href="{{ url_for('manage_questions',cid=c['id']) }}" class="btn btn-secondary btn-sm">📝 Câu hỏi</a>
+            <a href="{{ url_for('edit_course',cid=c['id']) }}" class="btn btn-outline btn-sm">✏️ Sửa</a>
+            <form method="POST" action="{{ url_for('delete_course',cid=c['id']) }}" style="display:inline" onsubmit="return confirm('Xóa?')"><button type="submit" class="btn btn-danger btn-sm">🗑</button></form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- EMAILS & SMTP TAB -->
+<div id="at-emails" class="atab" style="display:none">
+    <!-- SMTP Test -->
+    <div class="card" style="border-left:4px solid var(--secondary)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div><h4 style="color:var(--primary);font-size:14px">📧 Kiểm tra SMTP / Test Email</h4>
+            <p style="font-size:12px;color:#888">Gửi email test đến tài khoản Admin của bạn.</p></div>
+            <a href="{{ url_for('test_smtp') }}" class="btn btn-secondary btn-sm" onclick="return confirm('Gửi email test?')">🧪 Test SMTP</a>
+        </div>
+        <div style="background:#f0f7fb;padding:10px;border-radius:8px;margin-top:10px;font-size:11px;color:var(--secondary)">
+            <strong>Cấu hình hiện tại:</strong> SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASS → thiết lập trong Environment Variables trên Render.
+        </div>
+    </div>
+    <!-- Whitelist Management -->
+    <div class="card">
+        <h4 style="color:var(--primary);font-size:14px;margin-bottom:10px">🔐 Danh sách Email được phép đăng ký ({{ allowed_emails|length }})</h4>
+        {% if user['role'] == 'admin' %}
+        <form method="POST" action="{{ url_for('add_allowed_email') }}" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <input type="email" name="email" class="form-control" style="flex:2;min-width:200px" placeholder="email@manimedicalhanoi.com" required>
+            <input type="text" name="note" class="form-control" style="flex:1;min-width:120px" placeholder="Ghi chú (tùy chọn)">
+            <button type="submit" class="btn btn-primary btn-sm">➕ Thêm</button>
+        </form>
+        {% endif %}
+        <div class="table-wrap"><table>
+            <thead><tr><th>Email</th><th>Ghi chú</th><th>Trạng thái</th><th>Ngày thêm</th>{% if user['role']=='admin' %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+            {% for e in allowed_emails %}<tr style="{% if not e['active'] %}opacity:.5{% endif %}">
+                <td style="font-size:12px;word-break:break-all">{{ e['email'] }}</td>
+                <td style="font-size:11px;color:#888">{{ e['note'] or '' }}</td>
+                <td>{% if e['active'] %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Disabled</span>{% endif %}</td>
+                <td style="font-size:10px;color:#888">{{ (e['created_at'] or '')[:10] }}</td>
+                {% if user['role']=='admin' %}
+                <td style="white-space:nowrap">
+                    <form method="POST" action="{{ url_for('toggle_email', eid=e['id']) }}" style="display:inline"><button type="submit" class="btn btn-outline btn-sm">{% if e['active'] %}🔒{% else %}🔓{% endif %}</button></form>
+                    <form method="POST" action="{{ url_for('delete_email', eid=e['id']) }}" style="display:inline" onsubmit="return confirm('Xóa email này?')"><button type="submit" class="btn btn-danger btn-sm">🗑</button></form>
+                </td>
+                {% endif %}
+            </tr>{% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+
+<!-- REMINDER TAB -->
+<div id="at-remind" class="atab" style="display:none">
+<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:14px;font-size:16px">📧 Gửi nhắc nhở hoàn thành khóa học</h3>
+    <form method="POST" action="{{ url_for('send_reminder') }}">
+        <div class="form-group"><label>Chọn khóa học *</label>
+            <select name="course_id" class="form-control" required><option value="">-- Chọn --</option>{% for c in courses %}<option value="{{ c['id'] }}">{{ c['title_vi'] or c['title_en'] }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Gửi đến</label>
+            <select name="target_type" class="form-control" id="rem-type" onchange="toggleRT()">
+                <option value="all">Tất cả nhân viên</option><option value="department">Theo phòng ban</option><option value="individual">Cá nhân</option></select></div>
+        <div class="form-group" id="rem-dept" style="display:none"><label>Phòng ban</label>
+            <select name="target_value" class="form-control" id="rem-dept-val">{% for d in DEPARTMENTS %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+        <div class="form-group" id="rem-email" style="display:none"><label>Email</label>
+            <input type="email" name="target_value" class="form-control" id="rem-email-val" placeholder="email@..."></div>
+        <div class="form-group"><label>Nội dung</label><textarea name="message" class="form-control" rows="3">Vui lòng hoàn thành bài đào tạo và bài test đúng hạn.</textarea></div>
+        <button type="submit" class="btn btn-primary" onclick="return confirm('Gửi?')">📧 Gửi nhắc nhở</button>
+    </form>
+</div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div id="eu-modal" class="modal-overlay" onclick="if(event.target===this)closeEU()">
+<div class="modal-box">
+    <h3 style="color:var(--primary);margin-bottom:16px">Chỉnh sửa: <span id="eu-name"></span></h3>
+    <form method="POST" id="eu-form">
+        <div class="form-row">
+            <div class="form-group"><label>Department</label><select name="department" id="eu-dept" class="form-control">{% for d in DEPARTMENTS %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Team</label><select name="team" id="eu-team" class="form-control">{% for t in TEAMS %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Job Title</label><select name="job_title" id="eu-jt" class="form-control">{% for j in JOB_TITLES %}<option value="{{ j }}">{{ j }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Job Level</label><select name="job_level" id="eu-jl" class="form-control">{% for l in JOB_LEVELS %}<option value="{{ l }}">{{ l }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Vai trò</label><select name="role" id="eu-role" class="form-control"><option value="learner">Learner</option><option value="trainer">Trainer</option>{% if user['role']=='admin' %}<option value="admin">Admin</option>{% endif %}</select></div>
+            <div class="form-group"><label>Trạng thái</label><select name="status" id="eu-status" class="form-control"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+            <button type="button" onclick="closeEU()" class="btn btn-outline">Hủy</button>
+            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+        </div>
+    </form>
+</div>
+</div>
+
+<script>
+function showAT(n,el){document.querySelectorAll('.atab').forEach(t=>t.style.display='none');document.querySelectorAll('.tabs a').forEach(a=>a.classList.remove('active'));document.getElementById('at-'+n).style.display='block';el.classList.add('active')}
+['users','content','emails','remind'].forEach(h=>{if(location.hash==='#'+h){const el=document.getElementById('tl-'+h);if(el)showAT(h,el)}});
+function openEU(id,name,dept,team,jt,jl,role,status){
+    document.getElementById('eu-form').action='/admin/user/'+id+'/update';
+    document.getElementById('eu-name').textContent=name;
+    document.getElementById('eu-dept').value=dept;document.getElementById('eu-team').value=team;
+    document.getElementById('eu-jt').value=jt;document.getElementById('eu-jl').value=jl;
+    document.getElementById('eu-role').value=role;document.getElementById('eu-status').value=status;
+    document.getElementById('eu-modal').classList.add('show');
+}
+function closeEU(){document.getElementById('eu-modal').classList.remove('show')}
+function toggleRT(){
+    var v=document.getElementById('rem-type').value;
+    document.getElementById('rem-dept').style.display=v==='department'?'block':'none';
+    document.getElementById('rem-email').style.display=v==='individual'?'block':'none';
+    if(v==='department'){document.getElementById('rem-dept-val').name='target_value';document.getElementById('rem-email-val').name='_x'}
+    else if(v==='individual'){document.getElementById('rem-email-val').name='target_value';document.getElementById('rem-dept-val').name='_x'}
+    else{document.getElementById('rem-dept-val').name='_x';document.getElementById('rem-email-val').name='_x'}
+}
+toggleRT();
+</script>
+{% endblock %}

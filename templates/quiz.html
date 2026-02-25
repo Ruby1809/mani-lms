@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Bài thi - {{ course['title_vi'] or course['title_en'] }}{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div><span class="tag">{{ course['category'] }}</span><h3 style="color:var(--primary);margin:4px 0;font-size:16px">{{ course['title_vi'] or course['title_en'] }}</h3></div>
+        <div style="text-align:right"><span class="badge badge-info">{{ questions|length }} câu</span> <span class="badge badge-warning">Đạt: {{ course['pass_score'] }}</span></div>
+    </div>
+    {% if course['time_limit'] %}<div id="timer" style="margin-top:10px;font-size:18px;font-weight:700;color:var(--primary);text-align:center">⏱ <span id="time-display">{{ course['time_limit'] }}:00</span></div>{% endif %}
+</div>
+<form method="POST" id="quiz-form">
+    <input type="hidden" name="question_ids" value="{{ questions|map(attribute='id')|list|join(',') }}">
+    {% for q in questions %}
+    <div class="card question-card" id="q-{{ loop.index }}" style="{% if not loop.first %}display:none{% endif %}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;color:#666"><span>Câu {{ loop.index }}/{{ questions|length }}</span></div>
+        <div style="height:5px;background:#E0E0E0;border-radius:3px;margin-bottom:16px"><div style="height:100%;background:linear-gradient(90deg,var(--secondary),var(--yellow));border-radius:3px;width:{{ (loop.index/questions|length*100)|round }}%"></div></div>
+        <h3 style="color:var(--primary);font-size:16px;margin-bottom:16px;line-height:1.5">{{ q['text'] }}</h3>
+        {% for opt in ['a','b','c','d'] %}
+        {% if opt=='a' %}{% set val=q['option_a'] %}{% elif opt=='b' %}{% set val=q['option_b'] %}{% elif opt=='c' %}{% set val=q['option_c'] %}{% else %}{% set val=q['option_d'] %}{% endif %}
+        {% if val %}
+        <label class="quiz-option" onclick="selOpt(this,'q_{{ q['id'] }}','{{ opt }}')">
+            <input type="radio" name="q_{{ q['id'] }}" value="{{ opt }}"><span class="letter">{{ opt|upper }}</span><span>{{ val }}</span>
+        </label>
+        {% endif %}{% endfor %}
+    </div>
+    {% endfor %}
+    <div style="display:flex;justify-content:space-between;gap:10px;margin-top:16px">
+        <button type="button" id="btn-prev" class="btn btn-outline" onclick="nav(-1)" style="display:none">← Trước</button>
+        <div style="flex:1"></div>
+        <button type="button" id="btn-next" class="btn btn-primary" onclick="nav(1)">Tiếp →</button>
+        <button type="submit" id="btn-submit" class="btn btn-success" style="display:none;font-size:14px;padding:10px 24px" onclick="return confirm('Nộp bài? / Submit?')">✓ Nộp bài</button>
+    </div>
+</form>
+<script>
+const T={{ questions|length }};let C=1;
+function nav(d){document.getElementById('q-'+C).style.display='none';C+=d;document.getElementById('q-'+C).style.display='block';
+document.getElementById('btn-prev').style.display=C>1?'inline-flex':'none';
+document.getElementById('btn-next').style.display=C<T?'inline-flex':'none';
+document.getElementById('btn-submit').style.display=C===T?'inline-flex':'none'}
+function selOpt(el,n,v){el.closest('.question-card').querySelectorAll('.quiz-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');el.querySelector('input').checked=true}
+{% if course['time_limit'] %}
+let tl={{ course['time_limit'] }}*60;const te=document.getElementById('time-display');
+setInterval(()=>{tl--;const m=Math.floor(tl/60),s=tl%60;te.textContent=m+':'+(s<10?'0':'')+s;if(tl<=60)te.style.color='var(--danger)';if(tl<=0)document.getElementById('quiz-form').submit()},1000);
+{% endif %}
+</script>
+{% endblock %}

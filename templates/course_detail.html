@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ course['title_vi'] or course['title_en'] }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm" style="margin-bottom:14px">← Quay lại</a>
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div>
+            <span class="tag">{{ course['category'] }}</span>
+            <h2 style="color:var(--primary);margin:6px 0;font-size:20px">{{ course['title_vi'] or course['title_en'] }}</h2>
+            {% if course['title_en'] and course['title_vi'] %}<p style="color:var(--secondary);font-size:13px;font-style:italic">{{ course['title_en'] }}</p>{% endif %}
+            <p style="color:#666;font-size:13px;margin-top:6px">{{ course['desc_vi'] or course['desc_en'] or '' }}</p>
+        </div>
+        {% if attempt_info.has_passed and not attempt_info.has_retest_request %}
+        <span class="badge badge-success" style="font-size:13px;padding:6px 16px">✓ Đã đạt</span>
+        {% elif attempt_info.has_retest_request %}
+        <span class="badge badge-warning" style="font-size:13px;padding:6px 16px">⚠ Yêu cầu làm lại</span>
+        {% endif %}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+        <span class="badge badge-info">📝 {{ q_count }} câu hỏi (lấy {{ course['quiz_count'] or q_count }})</span>
+        <span class="badge badge-info">🎯 Đạt: {{ course['pass_score'] }}/{{ course['quiz_count'] or q_count }}</span>
+        <span class="badge badge-info">🔄 {{ attempt_info.attempt_count }}/{{ max_attempts }} lượt</span>
+        {% if course['deadline'] %}<span class="badge badge-warning">⏰ {{ course['deadline'] }}</span>{% endif %}
+        {% if course['time_limit'] %}<span class="badge badge-info">⏱ {{ course['time_limit'] }}p</span>{% endif %}
+    </div>
+</div>
+<div class="tabs">
+    <a href="#material" class="active" onclick="showTab('material',this)">📖 Tài liệu</a>
+    <a href="#quiz" onclick="showTab('quiz',this)">📝 Bài thi</a>
+    <a href="#history" onclick="showTab('history',this)">📊 Lịch sử</a>
+</div>
+<div id="tab-material" class="tab-content">
+    <div class="card">
+        {% if embed_url %}
+        <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;margin-bottom:14px">
+            <iframe src="{{ embed_url }}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe>
+        </div>
+        {% endif %}
+        {% if course['pdf_url'] %}<a href="{{ course['pdf_url'] }}" target="_blank" class="btn btn-secondary">📄 Xem PDF</a>{% endif %}
+        {% if not embed_url and not course['pdf_url'] %}<p style="text-align:center;color:#888;padding:24px">Chưa có tài liệu.</p>{% endif %}
+    </div>
+</div>
+<div id="tab-quiz" class="tab-content" style="display:none">
+    <div class="card" style="text-align:center">
+        {% if q_count == 0 %}
+        <p style="color:#888;padding:20px">Chưa có câu hỏi.</p>
+        {% elif can_take_quiz %}
+        <p style="font-size:40px;margin-bottom:8px">📝</p>
+        <h3 style="color:var(--primary);margin-bottom:6px">Bài kiểm tra</h3>
+        <p style="color:#666;font-size:13px">{{ course['quiz_count'] or q_count }} câu ngẫu nhiên từ ngân hàng {{ q_count }} câu</p>
+        <p style="color:#888;font-size:12px;margin:4px 0 14px">Điểm đạt: {{ course['pass_score'] }} • Lượt: {{ attempt_info.attempt_count + 1 }}/{{ max_attempts }}</p>
+        {% if attempt_info.has_retest_request %}<div class="flash flash-warning" style="text-align:left;margin-bottom:14px">⚠ Trainer yêu cầu bạn làm test lại. Kết quả cũ đã được reset.</div>{% endif %}
+        <a href="{{ url_for('take_quiz',cid=course['id']) }}" class="btn btn-primary" style="font-size:15px;padding:12px 28px">▶ Bắt đầu thi</a>
+        {% elif attempt_info.has_passed %}
+        <p style="font-size:40px">🎉</p>
+        <h3 style="color:var(--success);margin:8px 0">Bạn đã đạt bài test!</h3>
+        <p style="color:#666;font-size:13px">Xem chứng chỉ trong tab Lịch sử hoặc trang Chứng chỉ.</p>
+        {% else %}
+        <p style="font-size:40px">⛔</p>
+        <h3 style="color:var(--danger);margin:8px 0">Đã hết {{ max_attempts }} lượt</h3>
+        <p style="color:#666;font-size:13px">Liên hệ Trainer để yêu cầu làm lại.</p>
+        {% endif %}
+    </div>
+</div>
+<div id="tab-history" class="tab-content" style="display:none">
+    <div class="card">
+        {% if attempt_info.results|length == 0 %}
+        <p style="text-align:center;color:#888;padding:20px">Chưa có lịch sử.</p>
+        {% else %}
+        <div class="table-wrap"><table><thead><tr><th>Lượt</th><th>Điểm</th><th>Kết quả</th><th>Ngày</th><th>Thao tác</th></tr></thead><tbody>
+            {% for r in attempt_info.results %}
+            <tr>
+                <td>{{ r['attempt_number'] or loop.index }}</td>
+                <td><strong>{{ r['score'] }}/{{ r['total'] }}</strong></td>
+                <td>{% if r['passed'] %}<span class="badge badge-success">✓ Đạt</span>{% else %}<span class="badge badge-danger">✗ Chưa đạt</span>{% endif %}</td>
+                <td style="font-size:12px">{{ r['completed_at'][:16] }}</td>
+                <td>
+                    <a href="{{ url_for('quiz_result',cid=course['id'],rid=r['id']) }}" class="btn btn-outline btn-sm">Chi tiết</a>
+                    {% if r['passed'] %}<a href="{{ url_for('download_cert',cid=course['id'],rid=r['id']) }}" target="_blank" class="btn btn-primary btn-sm">📜 Chứng chỉ</a>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody></table></div>
+        {% endif %}
+    </div>
+</div>
+<script>function showTab(n,el){document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');document.querySelectorAll('.tabs a').forEach(a=>a.classList.remove('active'));document.getElementById('tab-'+n).style.display='block';el.classList.add('active')}</script>
+{% endblock %}

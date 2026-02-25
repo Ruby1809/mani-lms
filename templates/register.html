@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Đăng ký - MANI Learning Hub</title>
+    <style>
+        :root{--primary:#003047;--secondary:#3A7595;--yellow:#FFE100}*{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;min-height:100vh;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;padding:20px}
+        .box{background:#fff;border-radius:20px;padding:32px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+        .logo{text-align:center;margin-bottom:16px}.logo img{height:44px}.logo h2{color:var(--primary);font-size:20px;margin-top:6px}
+        .form-group{margin-bottom:10px}.form-group label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:2px}
+        .form-control{width:100%;padding:10px 12px;border:2px solid #E0E0E0;border-radius:8px;font-size:13px;outline:none;transition:border .2s}.form-control:focus{border-color:var(--secondary)}
+        select.form-control{background:#fff}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .btn{width:100%;padding:12px;background:var(--yellow);color:var(--primary);border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px}.btn:hover{opacity:.9}
+        .links{text-align:center;margin-top:12px;font-size:12px;color:#888}.links a{color:var(--secondary);font-weight:600}
+        .flash{padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:12px}
+        .flash-error{background:#f8d7da;color:#721c24}.flash-warning{background:#fff3cd;color:#856404}.flash-success{background:#d4edda;color:#155724}
+        @media(max-width:480px){.form-row{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="logo">
+            <img src="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" alt="MANI" onerror="this.style.display='none'">
+            <h2>Đăng ký / Register</h2>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+        <form method="POST">
+            <div class="form-group"><label>Họ tên / Full name *</label><input type="text" name="name" class="form-control" required></div>
+            <div class="form-group"><label>Email (@manimedicalhanoi.com) *</label><input type="email" name="email" class="form-control" required placeholder="your.name@manimedicalhanoi.com"></div>
+            <div class="form-group"><label>Mật khẩu / Password * (≥4 ký tự)</label><input type="password" name="password" class="form-control" required minlength="4"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Department</label>
+                    <select name="department" class="form-control">
+                        <option value="Sales & Marketing Vietnam">Sales & Marketing Vietnam</option>
+                        <option value="Back-office">Back-office</option>
+                        <option value="Management">Management</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Team</label>
+                    <select name="team" class="form-control">
+                        <option value="N/A">N/A</option>
+                        <option value="Product Team">Product Team</option>
+                        <option value="Marketing Team">Marketing Team</option>
+                        <option value="Dental Sales Team">Dental Sales Team</option>
+                        <option value="Surgical Sales Team">Surgical Sales Team</option>
+                        <option value="Stock Team">Stock Team</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Job Title</label>
+                    <select name="job_title" class="form-control">
+                        <option value="General Director">General Director</option>
+                        <option value="Head of Sales & Marketing Vietnam">Head of Sales & Marketing VN</option>
+                        <option value="Head of Back Office">Head of Back Office</option>
+                        <option value="Product Team Leader">Product Team Leader</option>
+                        <option value="Marketing Team Leader">Marketing Team Leader</option>
+                        <option value="Designer">Designer</option>
+                        <option value="Digital Marketing Executive">Digital Marketing Executive</option>
+                        <option value="Trade Marketing Executive">Trade Marketing Executive</option>
+                        <option value="Sales Representative" selected>Sales Representative</option>
+                        <option value="Sale Team Leader">Sale Team Leader</option>
+                        <option value="Accounting & Import-Export Executive">Accounting & Import-Export Exec</option>
+                        <option value="Purchasing & Sales Support Executive">Purchasing & Sales Support Exec</option>
+                        <option value="Operations & Registration Team Leader">Operations & Reg Team Leader</option>
+                        <option value="Operations Executive">Operations Executive</option>
+                        <option value="Stock Executive">Stock Executive</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Job Level</label>
+                    <select name="job_level" class="form-control">
+                        <option value="Manager">Manager</option>
+                        <option value="Assistant Manager">Assistant Manager</option>
+                        <option value="Senior Staff">Senior Staff</option>
+                        <option value="Staff" selected>Staff</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn">Đăng ký / Register</button>
+        </form>
+        <div class="links"><a href="{{ url_for('login') }}">← Đã có tài khoản? Đăng nhập</a></div>
+    </div>
+</body>
+</html>

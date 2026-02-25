@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Câu hỏi - {{ course['title_vi'] or course['title_en'] }}{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_panel') }}#content" class="btn btn-outline btn-sm" style="margin-bottom:14px">← Quay lại</a>
+
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+        <div>
+            <h3 style="color:var(--primary);margin-bottom:4px;font-size:16px">📝 Ngân hàng câu hỏi / Question Bank</h3>
+            <p style="color:var(--secondary);font-size:13px">{{ course['title_vi'] or course['title_en'] }}</p>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="badge badge-info">{{ questions|length }} câu hỏi</span>
+            <span class="badge badge-warning">Lấy {{ course['quiz_count'] or questions|length }} câu</span>
+            <span class="badge badge-success">Đạt: {{ course['pass_score'] }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- QUIZ SETTINGS -->
+<div class="card" style="border-left:4px solid var(--yellow)">
+    <h4 style="color:var(--primary);font-size:14px;margin-bottom:10px">⚙️ Cài đặt bài thi / Quiz Settings</h4>
+    <form method="POST" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <input type="hidden" name="action" value="update_settings">
+        <div style="flex:1;min-width:120px"><label style="font-size:11px;font-weight:600;color:#555">Số câu lấy ngẫu nhiên<br><span style="font-weight:400;color:#888">(0 = tất cả {{ questions|length }} câu)</span></label><input type="number" name="quiz_count" class="form-control" value="{{ course['quiz_count'] or 0 }}" min="0" max="{{ questions|length }}"></div>
+        <div style="flex:1;min-width:100px"><label style="font-size:11px;font-weight:600;color:#555">Điểm đạt</label><input type="number" name="pass_score" class="form-control" value="{{ course['pass_score'] }}" min="1"></div>
+        <div style="flex:1;min-width:100px"><label style="font-size:11px;font-weight:600;color:#555">Max lượt thi</label><input type="number" name="max_attempts" class="form-control" value="{{ course['max_attempts'] or 3 }}" min="1" max="10"></div>
+        <button type="submit" class="btn btn-primary btn-sm" style="height:38px">💾 Lưu cài đặt</button>
+    </form>
+</div>
+
+<!-- RETEST REQUEST -->
+<div class="card" style="border-left:4px solid var(--danger)">
+    <h4 style="color:var(--danger);font-size:14px;margin-bottom:10px">🔄 Yêu cầu làm test lại / Request Retest</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Reset kết quả và gửi email yêu cầu nhân viên thi lại.</p>
+    <form method="POST" action="{{ url_for('request_retest', cid=course['id']) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:120px">
+            <label style="font-size:11px;font-weight:600;color:#555">Gửi đến</label>
+            <select name="target_type" class="form-control" id="rt-type" onchange="toggleRT()">
+                <option value="all">Tất cả nhân viên</option>
+                <option value="department">Theo phòng ban</option>
+                <option value="individual">Cá nhân</option>
+            </select>
+        </div>
+        <div style="flex:1;min-width:140px" id="rt-val-wrap">
+            <label style="font-size:11px;font-weight:600;color:#555" id="rt-val-label">Giá trị</label>
+            <input type="text" name="target_value" class="form-control" id="rt-val" placeholder="email hoặc phòng ban">
+        </div>
+        <button type="submit" class="btn btn-danger btn-sm" style="height:38px" onclick="return confirm('Gửi yêu cầu thi lại? Kết quả cũ sẽ bị reset.')">🔄 Gửi yêu cầu</button>
+    </form>
+</div>
+
+<!-- IMPORT CSV: DRAG & DROP + PASTE -->
+<div class="card">
+    <h4 style="color:var(--primary);font-size:14px;margin-bottom:10px">📎 Thêm câu hỏi từ CSV / Import from CSV</h4>
+    <p style="font-size:11px;color:#888;margin-bottom:10px">Định dạng: <code style="background:#f0f0f0;padding:2px 6px;border-radius:4px">Câu hỏi|A|B|C|D|đáp án(a/b/c/d)|giải thích</code></p>
+
+    <!-- File drag & drop -->
+    <form method="POST" enctype="multipart/form-data" id="csv-file-form">
+        <input type="hidden" name="action" value="csv_file">
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file-input').click()">
+            <p style="font-size:28px;margin-bottom:8px">📂</p>
+            <p><strong>Kéo thả file CSV vào đây</strong></p>
+            <p>hoặc nhấp để chọn file / Drop CSV file here or click to browse</p>
+            <p id="file-name" style="color:var(--secondary);font-weight:600;margin-top:8px;display:none"></p>
+        </div>
+        <input type="file" id="csv-file-input" name="csv_file" accept=".csv,.txt" style="display:none" onchange="handleFileSelect(this)">
+        <button type="submit" id="file-submit-btn" class="btn btn-secondary btn-sm" style="margin-top:10px;display:none">📥 Import file</button>
+    </form>
+
+    <div style="position:relative;margin:14px 0"><div style="border-top:1px solid #ddd"></div><span style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#fff;padding:0 10px;color:#888;font-size:12px">hoặc dán text / or paste text</span></div>
+
+    <!-- Text paste -->
+    <form method="POST" id="csv-text-form">
+        <input type="hidden" name="action" value="csv">
+        <textarea name="csv_data" class="form-control" id="csv-textarea" style="font-family:monospace;font-size:11px;min-height:90px" placeholder="Câu hỏi 1|Đáp án A|Đáp án B|Đáp án C|Đáp án D|a|Giải thích&#10;Câu hỏi 2|Đáp án A|Đáp án B|Đáp án C|Đáp án D|b|Giải thích"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <span id="csv-preview" style="font-size:11px;color:#888"></span>
+            <button type="submit" class="btn btn-secondary btn-sm">📥 Import text CSV</button>
+        </div>
+    </form>
+</div>
+
+<!-- ADD MANUAL -->
+<details class="card" style="cursor:pointer">
+    <summary style="font-weight:600;color:var(--primary);font-size:14px;padding:4px 0">➕ Thêm câu hỏi thủ công / Add manually</summary>
+    <div style="margin-top:14px">
+        <form method="POST">
+            <input type="hidden" name="action" value="add">
+            <div class="form-group"><label>Nội dung câu hỏi *</label><textarea name="text" class="form-control" required placeholder="Nhập câu hỏi..."></textarea></div>
+            <div class="form-row">
+                <div class="form-group"><label>A *</label><input type="text" name="option_a" class="form-control" required></div>
+                <div class="form-group"><label>B *</label><input type="text" name="option_b" class="form-control" required></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>C</label><input type="text" name="option_c" class="form-control"></div>
+                <div class="form-group"><label>D</label><input type="text" name="option_d" class="form-control"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Đáp án đúng</label><select name="answer" class="form-control"><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div>
+                <div class="form-group"><label>Giải thích</label><input type="text" name="explanation" class="form-control"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">💾 Thêm câu hỏi</button>
+        </form>
+    </div>
+</details>
+
+<!-- QUESTIONS LIST -->
+<div class="card">
+    <h4 style="color:var(--primary);font-size:14px;margin-bottom:12px">📋 Danh sách câu hỏi ({{ questions|length }})</h4>
+    {% if questions|length == 0 %}
+    <p style="text-align:center;color:#888;padding:20px">Chưa có câu hỏi nào. Thêm bằng CSV hoặc thủ công ở trên.</p>
+    {% else %}
+    {% for q in questions %}
+    <div style="padding:10px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
+                <span style="font-size:11px;color:#888;font-weight:600">{{ loop.index }}.</span>
+                {% if q['source']=='csv' %}<span style="font-size:9px;background:#e8f4fd;color:var(--secondary);padding:1px 6px;border-radius:8px">CSV</span>{% elif q['source']=='manual' %}<span style="font-size:9px;background:#fdf0e8;color:#bf6a00;padding:1px 6px;border-radius:8px">Manual</span>{% endif %}
+            </div>
+            <p style="font-weight:600;font-size:13px;margin-bottom:4px">{{ q['text'] }}</p>
+            <div style="font-size:11px;color:#666;display:flex;flex-wrap:wrap;gap:8px">
+                <span style="{% if q['answer']=='a' %}font-weight:700;color:var(--success){% endif %}">A: {{ q['option_a'] }}</span>
+                <span style="{% if q['answer']=='b' %}font-weight:700;color:var(--success){% endif %}">B: {{ q['option_b'] }}</span>
+                {% if q['option_c'] %}<span style="{% if q['answer']=='c' %}font-weight:700;color:var(--success){% endif %}">C: {{ q['option_c'] }}</span>{% endif %}
+                {% if q['option_d'] %}<span style="{% if q['answer']=='d' %}font-weight:700;color:var(--success){% endif %}">D: {{ q['option_d'] }}</span>{% endif %}
+            </div>
+            {% if q['explanation'] %}<p style="font-size:10px;color:#888;font-style:italic;margin-top:2px">💡 {{ q['explanation'] }}</p>{% endif %}
+        </div>
+        <form method="POST" onsubmit="return confirm('Xóa câu hỏi này?')"><input type="hidden" name="action" value="delete"><input type="hidden" name="question_id" value="{{ q['id'] }}"><button type="submit" class="btn btn-danger btn-sm">🗑</button></form>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<script>
+// Drag & Drop
+const dz=document.getElementById('drop-zone');
+const fi=document.getElementById('csv-file-input');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('dragover');
+    if(e.dataTransfer.files.length){fi.files=e.dataTransfer.files;handleFileSelect(fi)}
+});
+function handleFileSelect(input){
+    if(input.files.length){
+        const fn=document.getElementById('file-name');
+        fn.textContent='📄 '+input.files[0].name;fn.style.display='block';
+        document.getElementById('file-submit-btn').style.display='inline-flex';
+    }
+}
+// CSV preview
+document.getElementById('csv-textarea').addEventListener('input',function(){
+    const lines=this.value.trim().split('\n').filter(l=>l.trim());
+    document.getElementById('csv-preview').textContent=lines.length>0?lines.length+' dòng / lines':'';
+});
+// Retest toggle
+function toggleRT(){
+    var v=document.getElementById('rt-type').value;
+    var w=document.getElementById('rt-val-wrap');
+    var l=document.getElementById('rt-val-label');
+    var i=document.getElementById('rt-val');
+    if(v==='all'){w.style.display='none';i.value=''}
+    else if(v==='department'){w.style.display='block';l.textContent='Phòng ban';i.placeholder='Sales, Marketing, ...'}
+    else{w.style.display='block';l.textContent='Email';i.placeholder='email@manimedicalhanoi.com'}
+}
+toggleRT();
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - MANI Learning Hub{% endblock %}
+{% block content %}
+<div class="banner">
+    <h2>Chào mừng, {{ user['name'] }}! 👋</h2>
+    <p>Nền tảng phát triển chuyên môn tại Mani Medical Hanoi</p>
+    <div class="banner-stats">
+        <div><span>{{ courses|length }}</span><br><span>Khóa học</span></div>
+        <div><span>{{ passed_ids|length }}</span><br><span>Hoàn thành</span></div>
+        <div><span>{{ courses|length - passed_ids|length }}</span><br><span>Đang chờ</span></div>
+    </div>
+</div>
+{% set pending=[] %}{% set completed=[] %}
+{% for c in courses %}{% if c['id'] in passed_ids %}{% set _=completed.append(c) %}{% else %}{% set _=pending.append(c) %}{% endif %}{% endfor %}
+{% if pending %}
+<h3 style="color:var(--primary);font-size:16px;margin-bottom:14px">📚 Cần hoàn thành ({{ pending|length }})</h3>
+<div class="card-grid" style="margin-bottom:28px">
+    {% for c in pending %}
+    <a href="{{ url_for('course_detail',cid=c['id']) }}" class="course-card">
+        <span class="tag">{{ c['category'] }}</span>
+        <h4>{{ c['title_vi'] or c['title_en'] }}</h4>
+        <p style="color:#777;font-size:12px;margin:4px 0 8px">{{ (c['desc_vi'] or c['desc_en'] or '')[:80] }}{% if (c['desc_vi'] or '')|length > 80 %}...{% endif %}</p>
+        <div class="meta">
+            <span>📝 {{ q_counts.get(c['id'],0) }} câu hỏi</span>
+            {% if c['deadline'] %}<span style="color:{% if c['deadline']<now %}var(--danger){% else %}#888{% endif %}">⏰ {{ c['deadline'] }}</span>{% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% if completed %}
+<h3 style="color:var(--success);font-size:16px;margin-bottom:14px">✅ Đã hoàn thành ({{ completed|length }})</h3>
+<div class="card-grid">
+    {% for c in completed %}
+    <a href="{{ url_for('course_detail',cid=c['id']) }}" class="course-card passed">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <span class="tag">{{ c['category'] }}</span><span class="badge badge-success">✓ Đạt</span>
+        </div>
+        <h4>{{ c['title_vi'] or c['title_en'] }}</h4>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% if not courses %}
+<div class="card" style="text-align:center;padding:40px;color:#888"><p style="font-size:40px">📚</p><p>Chưa có khóa học nào.</p></div>
+{% endif %}
+{% endblock %}

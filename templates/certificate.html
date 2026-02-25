@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Chứng chỉ - {{ user['name'] }}</title>
+    <style>
+        :root{--primary:#003047;--secondary:#3A7595;--yellow:#FFE100}*{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',sans-serif;background:#555;min-height:100vh;padding:16px}
+        .actions{max-width:900px;margin:0 auto 14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+        .btn{padding:10px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+        .btn-primary{background:var(--yellow);color:var(--primary)}.btn-secondary{background:var(--secondary);color:#fff}.btn-outline{background:#fff;color:var(--primary)}.btn-success{background:#28A745;color:#fff}
+        .cert-wrap{max-width:900px;margin:0 auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+        .cert-border{border:6px solid var(--primary);padding:4px}
+        .cert-inner{border:2px solid var(--yellow);padding:40px 50px;text-align:center;position:relative}
+        .cert-org{color:var(--secondary);font-size:14px;font-weight:600;letter-spacing:3px;text-transform:uppercase}
+        .cert-title{color:var(--primary);font-size:28px;font-weight:bold;margin:16px 0 6px;font-family:Georgia,serif}
+        .cert-title-en{color:var(--secondary);font-size:18px;font-weight:bold;font-family:Georgia,serif;margin-bottom:12px}
+        .divider{width:350px;height:3px;background:var(--yellow);margin:14px auto}
+        .cert-name{color:var(--primary);font-size:36px;font-weight:bold;font-family:Georgia,serif;margin:12px 0}
+        .cert-course{color:var(--secondary);font-size:22px;font-weight:bold;font-family:Georgia,serif;margin:12px 0}
+        .cert-score{font-size:20px;color:#333;font-weight:600;margin:14px 0}
+        .score-bar{width:220px;height:10px;background:#E0E0E0;border-radius:5px;margin:6px auto;overflow:hidden}
+        .score-fill{height:100%;background:#28A745;border-radius:5px}
+        .cert-date{color:#777;font-size:13px;margin-top:20px}
+        .cert-sigs{display:flex;justify-content:space-around;margin-top:36px;align-items:flex-end}
+        .cert-sigs .sig-block{text-align:center;min-width:180px}
+        .cert-sigs .sig-img{height:60px;margin-bottom:4px}
+        .cert-sigs .sig-name{font-weight:700;color:var(--primary);font-size:14px}
+        .cert-sigs .sig-role{font-size:11px;color:#888}
+        .cert-sigs .sig-line{width:160px;border-bottom:1px solid #ccc;display:inline-block;margin-bottom:6px}
+        .cert-footer{color:var(--primary);font-size:11px;font-weight:bold;margin-top:26px;letter-spacing:2px}
+        .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--primary)}
+        .c-tl{top:10px;left:10px}.c-tr{top:10px;right:10px}.c-bl{bottom:10px;left:10px}.c-br{bottom:10px;right:10px}
+        .flash{max-width:900px;margin:0 auto 10px;padding:10px 16px;border-radius:8px;font-size:13px}
+        .flash-success{background:#d4edda;color:#155724}.flash-error{background:#f8d7da;color:#721c24}
+        #cert-img{display:none;max-width:100%;margin:14px auto 0}
+        @media print{.actions,.flash{display:none!important}body{background:#fff;padding:0}.cert-wrap{box-shadow:none}}
+        @media(max-width:768px){.cert-inner{padding:24px 16px}.cert-title{font-size:22px}.cert-name{font-size:26px}.cert-course{font-size:17px}}
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endif %}{% endwith %}
+    <div class="actions">
+        <button onclick="window.print()" class="btn btn-outline">🖨 In / Print PDF</button>
+        <button onclick="downloadAsImage()" class="btn btn-primary">📥 Tải ảnh / Download</button>
+        <form method="POST" action="{{ url_for('send_cert_email',cid=course['id'],rid=result['id']) }}" style="display:inline"><button type="submit" class="btn btn-success">📧 Gửi email</button></form>
+        <a href="{{ url_for('course_detail',cid=course['id']) }}" class="btn btn-outline">← Quay lại</a>
+    </div>
+    <div class="cert-wrap" id="cert-html">
+        <div class="cert-border"><div class="cert-inner">
+            <div class="corner c-tl"></div><div class="corner c-tr"></div><div class="corner c-bl"></div><div class="corner c-br"></div>
+            <img src="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" alt="MANI" style="height:44px;margin-bottom:10px" onerror="this.style.display='none'" crossorigin="anonymous">
+            <div class="cert-org">MANI MEDICAL HANOI</div><div class="divider"></div>
+            <div class="cert-title">CHỨNG CHỈ HOÀN THÀNH ĐÀO TẠO</div>
+            <div class="cert-title-en">CERTIFICATE OF COMPLETION</div><div class="divider"></div>
+            <p style="color:#555;font-size:14px">Chứng nhận rằng / This is to certify that</p>
+            <div class="cert-name">{{ user['name'] }}</div>
+            <p style="color:#555;font-size:14px">Đã hoàn thành khóa đào tạo / Has completed</p>
+            <div class="cert-course">"{{ course['title_vi'] or course['title_en'] }}"</div>
+            <div class="cert-score">Điểm / Score: {{ result['score'] }}/{{ result['total'] }}</div>
+            <div class="score-bar"><div class="score-fill" style="width:{{ (result['score']/result['total']*100)|round }}%"></div></div>
+            <div class="cert-date">Ngày / Date: {{ result['completed_at'][:10] }}</div>
+            <div class="divider" style="margin-top:24px"></div>
+            <!-- SIGNATURES -->
+            <div class="cert-sigs">
+                <div class="sig-block">
+                    {% if trainer and trainer['signature_data'] %}
+                    <img src="{{ trainer['signature_data'] }}" class="sig-img" alt="Trainer signature">
+                    {% else %}
+                    <span class="sig-line"></span>
+                    {% endif %}
+                    <div class="sig-name">{{ trainer['name'] if trainer else 'Trainer' }}</div>
+                    <div class="sig-role">{{ trainer['job_title'] if trainer else 'Trainer' }}</div>
+                </div>
+                <div class="sig-block">
+                    <span class="sig-line"></span>
+                    <div class="sig-name">Manager</div>
+                    <div class="sig-role">MANI Medical Hanoi</div>
+                </div>
+            </div>
+            <div class="cert-footer">MANI MEDICAL HANOI • Learning & Certification Platform</div>
+        </div></div>
+    </div>
+    <img id="cert-img" alt="Certificate">
+    <script>
+    function downloadAsImage(){
+        const canvas=document.createElement('canvas');const scale=2;
+        canvas.width=900*scale;canvas.height=660*scale;
+        const ctx=canvas.getContext('2d');ctx.scale(scale,scale);
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,900,660);
+        ctx.strokeStyle='#003047';ctx.lineWidth=6;ctx.strokeRect(10,10,880,640);
+        ctx.strokeStyle='#FFE100';ctx.lineWidth=2;ctx.strokeRect(16,16,868,628);
+        ctx.fillStyle='#003047';
+        [[22,22],[862,22],[22,638],[862,638]].forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill()});
+        ctx.textAlign='center';
+        ctx.fillStyle='#3A7595';ctx.font='600 13px Segoe UI,sans-serif';ctx.fillText('MANI MEDICAL HANOI',450,58);
+        ctx.fillStyle='#FFE100';ctx.fillRect(200,68,500,3);
+        ctx.fillStyle='#003047';ctx.font='bold 26px Georgia,serif';ctx.fillText('CHỨNG CHỈ HOÀN THÀNH ĐÀO TẠO',450,105);
+        ctx.font='bold 17px Georgia,serif';ctx.fillStyle='#3A7595';ctx.fillText('CERTIFICATE OF COMPLETION',450,130);
+        ctx.fillStyle='#FFE100';ctx.fillRect(250,142,400,3);
+        ctx.fillStyle='#555';ctx.font='14px Segoe UI,sans-serif';ctx.fillText('Chứng nhận rằng / This is to certify that',450,175);
+        ctx.fillStyle='#003047';ctx.font='bold 32px Georgia,serif';ctx.fillText('{{ user["name"]|replace("'","") }}',450,218);
+        ctx.fillStyle='#555';ctx.font='14px Segoe UI,sans-serif';ctx.fillText('Đã hoàn thành / Has completed',450,260);
+        ctx.fillStyle='#3A7595';ctx.font='bold 20px Georgia,serif';
+        ctx.fillText('"{{ (course["title_vi"] or course["title_en"])|replace("'","") }}"',450,294);
+        ctx.fillStyle='#333';ctx.font='600 18px Segoe UI,sans-serif';
+        ctx.fillText('Điểm / Score: {{ result["score"] }}/{{ result["total"] }}',450,336);
+        ctx.fillStyle='#E0E0E0';ctx.fillRect(350,352,200,10);
+        ctx.fillStyle='#28A745';ctx.fillRect(350,352,200*({{ result['score'] }}/{{ result['total'] }}),10);
+        ctx.fillStyle='#777';ctx.font='13px Segoe UI,sans-serif';ctx.fillText('Ngày / Date: {{ result["completed_at"][:10] }}',450,395);
+        ctx.fillStyle='#FFE100';ctx.fillRect(200,418,500,3);
+        // Trainer signature area
+        ctx.fillStyle='#ccc';ctx.fillRect(180,500,170,1);ctx.fillRect(550,500,170,1);
+        ctx.fillStyle='#003047';ctx.font='bold 13px Segoe UI,sans-serif';
+        ctx.fillText('{{ (trainer["name"] if trainer else "Trainer")|replace("'","") }}',265,520);
+        ctx.fillStyle='#888';ctx.font='11px Segoe UI,sans-serif';
+        ctx.fillText('{{ (trainer["job_title"] if trainer else "Trainer")|replace("'","") }}',265,536);
+        ctx.fillText('Manager',635,520);ctx.fillText('MANI Medical Hanoi',635,536);
+        ctx.fillStyle='#003047';ctx.font='bold 10px Segoe UI,sans-serif';
+        ctx.fillText('MANI MEDICAL HANOI  •  Learning & Certification Platform',450,580);
+        try{
+            const link=document.createElement('a');
+            link.download='Certificate_{{ user["name"]|replace(" ","_") }}.png';
+            link.href=canvas.toDataURL('image/png');
+            if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+                const img=document.getElementById('cert-img');img.src=canvas.toDataURL('image/png');img.style.display='block';
+                document.getElementById('cert-html').style.display='none';
+                alert('Nhấn giữ ảnh bên dưới để lưu / Long-press to save');
+            }else{link.click()}
+        }catch(e){window.print()}
+    }
+    </script>
+</body>
+</html>

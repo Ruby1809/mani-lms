@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sửa' if course else 'Thêm' }} khóa học{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_panel') }}#content" class="btn btn-outline btn-sm" style="margin-bottom:14px">← Quay lại</a>
+<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:16px">{{ '✏️ Sửa khóa học' if course else '➕ Thêm khóa học mới' }}</h3>
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group"><label>Tên (VN) *</label><input type="text" name="title_vi" class="form-control" value="{{ course['title_vi'] if course else '' }}" required></div>
+            <div class="form-group"><label>Title (EN)</label><input type="text" name="title_en" class="form-control" value="{{ course['title_en'] if course else '' }}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Mô tả (VN)</label><textarea name="desc_vi" class="form-control">{{ course['desc_vi'] if course else '' }}</textarea></div>
+            <div class="form-group"><label>Description (EN)</label><textarea name="desc_en" class="form-control">{{ course['desc_en'] if course else '' }}</textarea></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Danh mục</label><select name="category" class="form-control">{% for c in categories %}<option value="{{ c }}" {{ 'selected' if course and course['category']==c }}>{{ c }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Hạn chót</label><input type="date" name="deadline" class="form-control" value="{{ course['deadline'] if course else '' }}"></div>
+        </div>
+        <div class="form-group"><label>Video URL (YouTube)</label><input type="url" name="video_url" class="form-control" value="{{ course['video_url'] if course else '' }}"></div>
+        <div class="form-group"><label>PDF URL</label><input type="url" name="pdf_url" class="form-control" value="{{ course['pdf_url'] if course else '' }}"></div>
+        <div style="background:var(--bg);border-radius:10px;padding:16px;margin:16px 0">
+            <h4 style="color:var(--primary);font-size:14px;margin-bottom:10px">⚙️ Cài đặt bài thi</h4>
+            <div class="form-row">
+                <div class="form-group"><label>Số câu ngẫu nhiên (0=tất cả){% if course %} — Ngân hàng: {{ q_count if q_count is defined else '?' }}{% endif %}</label>
+                    <input type="number" name="quiz_count" class="form-control" value="{{ course['quiz_count'] if course else 0 }}" min="0"></div>
+                <div class="form-group"><label>Điểm đạt</label><input type="number" name="pass_score" class="form-control" value="{{ course['pass_score'] if course else 3 }}" min="1"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Thời gian (phút)</label><input type="number" name="time_limit" class="form-control" value="{{ course['time_limit'] if course else 15 }}" min="1"></div>
+                <div class="form-group"><label>Max lượt thi</label><input type="number" name="max_attempts" class="form-control" value="{{ course['max_attempts'] if course else 3 }}" min="1" max="10"></div>
+            </div>
+        </div>
+        <div class="form-group"><label>Phòng ban đối tượng</label>
+            <div class="checkbox-group">
+                {% set cg = course['target_groups'] | from_json if course and course['target_groups'] else [] %}
+                {% for d in DEPARTMENTS %}<label><input type="checkbox" name="target_groups" value="{{ d }}" {{ 'checked' if d in cg or (not course) }}> {{ d }}</label>{% endfor %}
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end"><a href="{{ url_for('admin_panel') }}#content" class="btn btn-outline">Hủy</a><button type="submit" class="btn btn-primary">💾 Lưu</button></div>
+    </form>
+</div>
+{% endblock %}

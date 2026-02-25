@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Kết quả - MANI Learning Hub{% endblock %}
+{% block content %}
+<a href="{{ url_for('course_detail',cid=course['id']) }}" class="btn btn-outline btn-sm" style="margin-bottom:14px">← Quay lại</a>
+<div class="card" style="text-align:center;padding:36px">
+    <div style="font-size:56px;margin-bottom:8px">{% if result['passed'] %}🎉{% else %}😔{% endif %}</div>
+    <h2 style="color:{% if result['passed'] %}var(--success){% else %}var(--danger){% endif %};margin-bottom:6px">{% if result['passed'] %}Chúc mừng! Bạn đã đạt!{% else %}Chưa đạt điểm yêu cầu{% endif %}</h2>
+    <p style="font-size:32px;font-weight:700;color:var(--primary);margin:10px 0">{{ result['score'] }}/{{ result['total'] }}</p>
+    <p style="color:#666;font-size:13px">Điểm đạt: {{ course['pass_score'] }} | Lượt: {{ result['attempt_number'] or 1 }}/{{ course['max_attempts'] or 3 }}</p>
+    <div style="max-width:250px;margin:14px auto"><div class="progress-bar"><div class="progress-fill" style="width:{{ (result['score']/result['total']*100)|round }}%;background:{% if result['passed'] %}var(--success){% else %}var(--danger){% endif %}"></div></div></div>
+    {% if result['passed'] %}
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+        <a href="{{ url_for('download_cert',cid=course['id'],rid=result['id']) }}" target="_blank" class="btn btn-primary">📜 Xem/Tải chứng chỉ</a>
+        <form method="POST" action="{{ url_for('send_cert_email',cid=course['id'],rid=result['id']) }}" style="display:inline">
+            <button type="submit" class="btn btn-secondary">📧 Gửi qua email</button>
+        </form>
+    </div>
+    {% else %}
+    {% set remaining = (course['max_attempts'] or 3) - (attempt_info.attempt_count if attempt_info else 1) %}
+    {% if remaining > 0 %}
+    <a href="{{ url_for('take_quiz',cid=course['id']) }}" class="btn btn-secondary" style="margin-top:14px">🔄 Thử lại (còn {{ remaining }} lượt)</a>
+    {% else %}
+    <p style="color:var(--danger);font-size:13px;margin-top:14px">Đã hết lượt. Liên hệ Trainer để làm lại.</p>
+    {% endif %}
+    {% endif %}
+</div>
+<h3 style="color:var(--primary);font-size:16px;margin:20px 0 12px">📋 Chi tiết câu trả lời</h3>
+{% for q in questions %}
+{% set ua=answers.get(q['id']|string,'') %}{% set ok=ua==q['answer'] %}
+<div class="card" style="border-left:4px solid {% if ok %}var(--success){% else %}var(--danger){% endif %};padding:14px 16px">
+    <p style="font-weight:600;font-size:13px;margin-bottom:6px">{{ loop.index }}. {{ q['text'] }}</p>
+    <p style="font-size:12px;color:{% if ok %}var(--success){% else %}var(--danger){% endif %}">Trả lời: {% if ua %}{% if ua=='a' %}{{ q['option_a'] }}{% elif ua=='b' %}{{ q['option_b'] }}{% elif ua=='c' %}{{ q['option_c'] }}{% else %}{{ q['option_d'] }}{% endif %} {% if ok %}✓{% else %}✗{% endif %}{% else %}(Bỏ qua) ✗{% endif %}</p>
+    {% if not ok %}<p style="font-size:12px;color:var(--success)">Đáp án: {% if q['answer']=='a' %}{{ q['option_a'] }}{% elif q['answer']=='b' %}{{ q['option_b'] }}{% elif q['answer']=='c' %}{{ q['option_c'] }}{% else %}{{ q['option_d'] }}{% endif %}</p>{% endif %}
+    {% if q['explanation'] %}<p style="font-size:11px;color:#888;font-style:italic;margin-top:3px">💡 {{ q['explanation'] }}</p>{% endif %}
+</div>
+{% endfor %}
+{% endblock %}
