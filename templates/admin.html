@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Quản trị - MANI Learning Hub{% endblock %}
+{% block content %}
+<h2 style="color:var(--primary);margin-bottom:20px">⚙️ Bảng điều khiển quản trị / Admin Panel</h2>
+
+<!-- Stats -->
+<div class="stats-grid">
+    <div class="stat-card" style="border-top:4px solid var(--primary)">
+        <div class="emoji">👥</div>
+        <div class="num">{{ stats.total_users }}</div>
+        <div class="label">Học viên / Learners</div>
+    </div>
+    <div class="stat-card" style="border-top:4px solid var(--secondary)">
+        <div class="emoji">📚</div>
+        <div class="num">{{ stats.total_courses }}</div>
+        <div class="label">Khóa học / Courses</div>
+    </div>
+    <div class="stat-card" style="border-top:4px solid var(--success)">
+        <div class="emoji">🏆</div>
+        <div class="num">{{ stats.total_certs }}</div>
+        <div class="label">Chứng chỉ / Certs</div>
+    </div>
+    <div class="stat-card" style="border-top:4px solid var(--yellow)">
+        <div class="emoji">📝</div>
+        <div class="num">{{ stats.total_attempts }}</div>
+        <div class="label">Lượt thi / Attempts</div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <a href="#users" class="active" onclick="showAdminTab('users',this)" id="tab-link-users">👥 Người dùng</a>
+    <a href="#content" onclick="showAdminTab('content',this)" id="tab-link-content">📋 Nội dung</a>
+</div>
+
+<!-- Users Tab -->
+<div id="admin-users" class="admin-tab">
+    <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tên</th>
+                        <th>Email</th>
+                        <th>Phòng ban</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td><strong>{{ u['name'] }}</strong></td>
+                        <td style="font-size:12px">{{ u['email'] }}</td>
+                        <td><span class="tag">{{ u['department'] }}</span></td>
+                        <td>
+                            <span class="badge badge-{{ u['role'] }}">{{ u['role'] }}</span>
+                        </td>
+                        <td>
+                            {% if u['verified'] %}
+                            <span class="badge badge-success">✓ Verified</span>
+                            {% else %}
+                            <span class="badge badge-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openEditUser({{ u['id'] }}, '{{ u['department'] }}', '{{ u['role'] }}', '{{ u['status'] }}', '{{ u['name'] }}')">
+                                ✏️ Sửa
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Content Tab -->
+<div id="admin-content" class="admin-tab" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="color:var(--primary)">Quản lý khóa học</h3>
+        <a href="{{ url_for('new_course') }}" class="btn btn-primary">➕ Thêm khóa học</a>
+    </div>
+    {% for c in courses %}
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:16px">
+        <div style="flex:1;min-width:200px">
+            <div style="display:flex;gap:6px;margin-bottom:4px">
+                <span class="tag">{{ c['category'] }}</span>
+                {% set qcount = [] %}
+                <span class="badge badge-info" style="font-size:11px">ID:{{ c['id'] }}</span>
+            </div>
+            <h4 style="margin:4px 0;color:var(--primary);font-size:15px">{{ c['title_vi'] or c['title_en'] }}</h4>
+            {% set groups = c['target_groups'] %}
+            {% if groups %}
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+                {% for g in (groups | from_json) %}
+                <span style="font-size:10px;background:#f0f0f0;padding:2px 6px;border-radius:8px;color:#666">{{ g }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="{{ url_for('manage_questions', cid=c['id']) }}" class="btn btn-secondary btn-sm">📝 Câu hỏi</a>
+            <a href="{{ url_for('edit_course', cid=c['id']) }}" class="btn btn-outline btn-sm">✏️ Sửa</a>
+            <form method="POST" action="{{ url_for('delete_course', cid=c['id']) }}" style="display:inline" onsubmit="return confirm('Xóa khóa học này?')">
+                <button type="submit" class="btn btn-danger btn-sm">🗑</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% if courses|length == 0 %}
+    <div class="card" style="text-align:center;color:#888;padding:32px">Chưa có khóa học nào.</div>
+    {% endif %}
+</div>
+
+<!-- Edit User Modal -->
+<div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;padding:20px;align-items:center;justify-content:center">
+    <div style="background:white;border-radius:16px;padding:32px;max-width:500px;width:100%;margin:auto">
+        <h3 style="color:var(--primary);margin-bottom:20px">Chỉnh sửa: <span id="edit-user-name"></span></h3>
+        <form method="POST" id="edit-user-form">
+            <div class="form-group">
+                <label>Phòng ban / Department</label>
+                <select name="department" id="edit-dept" class="form-control">
+                    {% for d in departments %}
+                    <option value="{{ d }}">{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Vai trò / Role</label>
+                <select name="role" id="edit-role" class="form-control">
+                    <option value="learner">Học viên / Learner</option>
+                    <option value="trainer">Đào tạo viên / Trainer</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Trạng thái / Status</label>
+                <select name="status" id="edit-status" class="form-control">
+                    <option value="active">Hoạt động / Active</option>
+                    <option value="inactive">Ngừng / Inactive</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+                <button type="button" onclick="closeEditUser()" class="btn btn-outline">Hủy</button>
+                <button type="submit" class="btn btn-primary">💾 Lưu / Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showAdminTab(name, el) {
+    document.querySelectorAll('.admin-tab').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tabs a').forEach(a => a.classList.remove('active'));
+    document.getElementById('admin-' + name).style.display = 'block';
+    el.classList.add('active');
+}
+
+// Handle hash navigation
+if (window.location.hash === '#content') {
+    showAdminTab('content', document.getElementById('tab-link-content'));
+}
+
+function openEditUser(id, dept, role, status, name) {
+    document.getElementById('edit-user-form').action = '/admin/user/' + id + '/update';
+    document.getElementById('edit-dept').value = dept;
+    document.getElementById('edit-role').value = role;
+    document.getElementById('edit-status').value = status || 'active';
+    document.getElementById('edit-user-name').textContent = name;
+    document.getElementById('edit-user-modal').style.display = 'flex';
+}
+function closeEditUser() {
+    document.getElementById('edit-user-modal').style.display = 'none';
+}
+document.getElementById('edit-user-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditUser();
+});
+</script>
+{% endblock %}

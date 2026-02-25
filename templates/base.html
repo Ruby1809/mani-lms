@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MANI Learning Hub{% endblock %}</title>
+    <link rel="icon" href="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" type="image/png">
+    <style>
+        :root {
+            --primary: #003047;
+            --secondary: #3A7595;
+            --yellow: #FFE100;
+            --bg: #F2F2F2;
+            --white: #FFFFFF;
+            --danger: #DC3545;
+            --success: #28A745;
+            --gray: #6c757d;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: #333; min-height: 100vh; }
+        a { color: var(--secondary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Header */
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-left img { height: 36px; border-radius: 4px; }
+        .header-left h1 { font-size: 18px; font-weight: 700; }
+        .header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+        .header-right .user-info { text-align: right; }
+        .header-right .user-info .name { font-weight: 600; }
+        .header-right .user-info .dept { opacity: 0.7; font-size: 11px; }
+
+        /* Nav */
+        .nav-bar { background: var(--primary); padding: 0 20px; display: flex; gap: 4px; overflow-x: auto; }
+        .nav-bar a { color: rgba(255,255,255,0.7); padding: 12px 18px; font-size: 13px; font-weight: 500; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .nav-bar a:hover, .nav-bar a.active { color: white; border-bottom-color: var(--yellow); text-decoration: none; background: rgba(255,255,255,0.05); }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+        /* Cards */
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); text-decoration: none; }
+        .btn-primary { background: var(--yellow); color: var(--primary); }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .btn-white { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 14px; font-size: 12px; }
+        .btn-white:hover { background: rgba(255,255,255,0.1); }
+
+        /* Forms */
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        .form-control { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+        .form-control:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(58,117,149,0.1); }
+        select.form-control { background: white; }
+        textarea.form-control { min-height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; font-weight: 400; }
+
+        /* Tags & Badges */
+        .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(58,117,149,0.15); color: var(--secondary); }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: rgba(40,167,69,0.15); color: var(--success); }
+        .badge-danger { background: rgba(220,53,69,0.15); color: var(--danger); }
+        .badge-warning { background: rgba(255,193,7,0.15); color: #856404; }
+        .badge-info { background: rgba(58,117,149,0.15); color: var(--secondary); }
+        .badge-admin { background: rgba(220,53,69,0.15); color: var(--danger); }
+        .badge-trainer { background: rgba(58,117,149,0.15); color: var(--secondary); }
+        .badge-learner { background: rgba(40,167,69,0.15); color: var(--success); }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { padding: 12px 16px; background: var(--primary); color: white; text-align: left; font-weight: 600; font-size: 13px; }
+        td { padding: 10px 16px; border-bottom: 1px solid #eee; }
+        tr:hover td { background: #fafafa; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { text-align: center; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .stat-card .emoji { font-size: 32px; }
+        .stat-card .num { font-size: 36px; font-weight: 700; color: var(--primary); }
+        .stat-card .label { font-size: 13px; color: #666; margin-top: 4px; }
+
+        /* Progress Bar */
+        .progress-bar { height: 10px; background: #E0E0E0; border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--secondary), var(--yellow)); border-radius: 5px; transition: width 0.5s; }
+
+        /* Banner */
+        .banner { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 16px; padding: 32px; color: white; margin-bottom: 24px; position: relative; overflow: hidden; }
+        .banner::after { content: ''; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; border-radius: 50%; background: rgba(255,225,0,0.1); }
+        .banner h2 { font-size: 24px; margin-bottom: 8px; }
+        .banner p { opacity: 0.85; font-size: 15px; }
+        .banner-stats { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+        .banner-stats div span:first-child { font-size: 28px; font-weight: 700; }
+        .banner-stats div span:last-child { font-size: 12px; opacity: 0.7; }
+
+        /* Flash Messages */
+        .flash { padding: 12px 20px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+        .flash-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+
+        /* Course Card */
+        .course-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid var(--secondary); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; display: block; color: inherit; }
+        .course-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); text-decoration: none; color: inherit; }
+        .course-card h4 { color: var(--primary); margin: 8px 0; font-size: 16px; }
+        .course-card .meta { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 12px; }
+        .course-card.passed { border-top-color: var(--success); }
+
+        /* Tabs */
+        .tabs { display: flex; background: white; border-radius: 10px; padding: 4px; margin-bottom: 20px; gap: 4px; }
+        .tabs a { flex: 1; padding: 10px; text-align: center; border-radius: 8px; font-size: 13px; font-weight: 600; color: #666; transition: all 0.2s; }
+        .tabs a:hover { background: #f5f5f5; text-decoration: none; }
+        .tabs a.active { background: var(--primary); color: white; }
+
+        /* Quiz */
+        .quiz-option { padding: 14px 18px; border: 2px solid #E0E0E0; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s; margin-bottom: 10px; }
+        .quiz-option:hover { border-color: var(--secondary); background: rgba(58,117,149,0.05); }
+        .quiz-option.selected { border-color: var(--yellow); background: rgba(255,225,0,0.08); }
+        .quiz-option input[type=radio] { display: none; }
+        .quiz-option .letter { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #F0F0F0; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+        .quiz-option.selected .letter { background: var(--yellow); color: var(--primary); }
+
+        /* Modal / Section */
+        .section-title { color: var(--primary); font-size: 18px; margin-bottom: 16px; }
+
+        /* Cert page */
+        .cert-container { max-width: 900px; margin: 0 auto; background: white; }
+        .cert-border { border: 6px solid var(--primary); padding: 4px; }
+        .cert-inner { border: 2px solid var(--yellow); padding: 50px 60px; text-align: center; }
+        .cert-inner .org { color: var(--secondary); font-size: 16px; font-weight: 600; letter-spacing: 3px; }
+        .cert-inner .title { color: var(--primary); font-size: 32px; font-weight: bold; margin: 16px 0; font-family: Georgia, serif; }
+        .cert-inner .body { color: #555; font-size: 16px; margin: 12px 0; }
+        .cert-inner .name { color: var(--primary); font-size: 36px; font-weight: bold; font-family: Georgia, serif; margin: 20px 0; }
+        .cert-inner .course-name { color: var(--secondary); font-size: 24px; font-weight: bold; font-family: Georgia, serif; margin: 16px 0; }
+        .cert-inner .score-text { font-size: 20px; color: #333; margin: 16px 0; }
+        .cert-inner .date-text { color: #777; font-size: 14px; margin-top: 24px; }
+        .cert-inner .divider { width: 400px; height: 3px; background: var(--yellow); margin: 16px auto; }
+        .cert-sigs { display: flex; justify-content: space-around; margin-top: 40px; }
+        .cert-sigs div { text-align: center; color: #888; font-size: 13px; }
+        .cert-sigs .line { width: 180px; border-bottom: 1px solid #ccc; margin-bottom: 8px; }
+        .cert-footer { color: var(--primary); font-size: 12px; font-weight: bold; margin-top: 30px; letter-spacing: 2px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+            .header-right .user-info { display: none; }
+            .banner h2 { font-size: 20px; }
+            .nav-bar { padding: 0 8px; }
+            .nav-bar a { padding: 10px 12px; font-size: 12px; }
+            .container { padding: 16px 12px; }
+            .cert-inner { padding: 30px 20px; }
+            .cert-inner .title { font-size: 24px; }
+            .cert-inner .name { font-size: 28px; }
+        }
+
+        /* Print styles for certificate */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            .cert-container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    {% if session.get('user_email') %}
+    <header class="header no-print">
+        <div class="header-left">
+            <img src="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" alt="MANI" onerror="this.style.display='none'">
+            <h1>MANI Learning Hub</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <div class="name">{{ session.get('user_name', '') }}</div>
+                <div class="dept">{{ session.get('user_role', '') }}</div>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-white">Đăng xuất</a>
+        </div>
+    </header>
+    <nav class="nav-bar no-print">
+        <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}">🏠 Trang chủ</a>
+        <a href="{{ url_for('my_certs') }}" class="{{ 'active' if request.endpoint == 'my_certs' }}">🏆 Chứng chỉ</a>
+        {% if session.get('user_role') in ('admin', 'trainer') %}
+        <a href="{{ url_for('admin_panel') }}" class="{{ 'active' if request.endpoint == 'admin_panel' }}">⚙️ Quản trị</a>
+        <a href="{{ url_for('analytics') }}" class="{{ 'active' if request.endpoint == 'analytics' }}">📊 Thống kê</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

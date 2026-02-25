@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Bài thi - {{ course['title_vi'] or course['title_en'] }}{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+            <span class="tag">{{ course['category'] }}</span>
+            <h3 style="color:var(--primary);margin:4px 0">{{ course['title_vi'] or course['title_en'] }}</h3>
+        </div>
+        <div style="text-align:right">
+            <span class="badge badge-info">{{ questions|length }} câu hỏi</span>
+            <span class="badge badge-warning">Đạt: {{ course['pass_score'] }}/{{ questions|length }}</span>
+        </div>
+    </div>
+    {% if course['time_limit'] %}
+    <div id="timer" style="margin-top:12px;font-size:20px;font-weight:700;color:var(--primary);text-align:center">
+        ⏱ <span id="time-display">{{ course['time_limit'] }}:00</span>
+    </div>
+    {% endif %}
+</div>
+
+<form method="POST" id="quiz-form">
+    {% for q in questions %}
+    <div class="card question-card" id="q-{{ loop.index }}" style="{% if not loop.first %}display:none{% endif %}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;color:#666">
+            <span>Câu {{ loop.index }} / {{ questions|length }}</span>
+        </div>
+        <div style="height:6px;background:#E0E0E0;border-radius:3px;margin-bottom:20px">
+            <div style="height:100%;background:linear-gradient(90deg,var(--secondary),var(--yellow));border-radius:3px;width:{{ (loop.index / questions|length * 100)|round }}%;transition:width 0.3s"></div>
+        </div>
+
+        <h3 style="color:var(--primary);font-size:18px;margin-bottom:20px;line-height:1.5">{{ q['text'] }}</h3>
+
+        {% for opt in ['a', 'b', 'c', 'd'] %}
+        {% set opt_text = q['option_' + opt] if opt != 'a' else q['option_a'] %}
+        {% if opt == 'a' %}{% set opt_text = q['option_a'] %}{% endif %}
+        {% if opt == 'b' %}{% set opt_text = q['option_b'] %}{% endif %}
+        {% if opt == 'c' %}{% set opt_text = q['option_c'] %}{% endif %}
+        {% if opt == 'd' %}{% set opt_text = q['option_d'] %}{% endif %}
+        {% if opt_text %}
+        <label class="quiz-option" onclick="selectOption(this, 'q_{{ q['id'] }}', '{{ opt }}')">
+            <input type="radio" name="q_{{ q['id'] }}" value="{{ opt }}">
+            <span class="letter">{{ opt|upper }}</span>
+            <span>{{ opt_text }}</span>
+        </label>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <!-- Navigation -->
+    <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px">
+        <button type="button" id="btn-prev" class="btn btn-outline" onclick="navigate(-1)" style="display:none">← Trước</button>
+        <div style="flex:1"></div>
+        <button type="button" id="btn-next" class="btn btn-primary" onclick="navigate(1)">Tiếp →</button>
+        <button type="submit" id="btn-submit" class="btn btn-success" style="display:none;font-size:16px;padding:12px 28px">
+            ✓ Nộp bài / Submit
+        </button>
+    </div>
+</form>
+
+<script>
+const total = {{ questions|length }};
+let current = 1;
+
+function navigate(dir) {
+    document.getElementById('q-' + current).style.display = 'none';
+    current += dir;
+    document.getElementById('q-' + current).style.display = 'block';
+    document.getElementById('btn-prev').style.display = current > 1 ? 'inline-flex' : 'none';
+    document.getElementById('btn-next').style.display = current < total ? 'inline-flex' : 'none';
+    document.getElementById('btn-submit').style.display = current === total ? 'inline-flex' : 'none';
+}
+
+function selectOption(el, name, value) {
+    el.closest('.question-card').querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+}
+
+{% if course['time_limit'] %}
+let timeLeft = {{ course['time_limit'] }} * 60;
+const timerEl = document.getElementById('time-display');
+const timerInterval = setInterval(() => {
+    timeLeft--;
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    timerEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    if (timeLeft <= 60) timerEl.style.color = 'var(--danger)';
+    if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById('quiz-form').submit();
+    }
+}, 1000);
+{% endif %}
+</script>
+{% endblock %}

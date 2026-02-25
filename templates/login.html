@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - MANI Learning Hub</title>
+    <style>
+        :root { --primary: #003047; --secondary: #3A7595; --yellow: #FFE100; --bg: #F2F2F2; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; min-height: 100vh; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .login-box { background: white; border-radius: 20px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .logo-area { text-align: center; margin-bottom: 32px; }
+        .logo-area img { height: 56px; margin-bottom: 12px; }
+        .logo-area h1 { color: var(--primary); font-size: 22px; margin: 8px 0 4px; }
+        .logo-area p { color: #888; font-size: 13px; }
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        .form-control { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-control:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(58,117,149,0.1); }
+        .btn-login { width: 100%; padding: 14px; background: var(--yellow); color: var(--primary); border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+        .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+        .links { text-align: center; margin-top: 16px; font-size: 13px; color: #888; }
+        .links a { color: var(--secondary); font-weight: 600; }
+        .flash { padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+        .flash-error { background: #f8d7da; color: #721c24; }
+        .flash-warning { background: #fff3cd; color: #856404; }
+        .flash-success { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo-area">
+            <img src="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" alt="MANI" onerror="this.style.display='none'">
+            <h1>MANI Learning Hub</h1>
+            <p>Learning & Certification Platform</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" placeholder="your.email@manimedicalhanoi.com" required>
+            </div>
+            <div class="form-group">
+                <label>Mật khẩu / Password</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn-login">Đăng nhập / Login</button>
+        </form>
+        <div class="links">
+            Chưa có tài khoản? <a href="{{ url_for('register') }}">Đăng ký / Register</a>
+        </div>
+    </div>
+</body>
+</html>

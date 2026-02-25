@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chứng chỉ - {{ user['name'] }}</title>
+    <style>
+        :root { --primary: #003047; --secondary: #3A7595; --yellow: #FFE100; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #666; min-height: 100vh; padding: 20px; }
+        .actions { max-width: 900px; margin: 0 auto 16px; display: flex; gap: 12px; justify-content: center; }
+        .btn { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--yellow); color: var(--primary); }
+        .btn-outline { background: white; color: var(--primary); }
+        .cert-container { max-width: 900px; margin: 0 auto; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .cert-border { border: 6px solid var(--primary); padding: 4px; }
+        .cert-inner { border: 2px solid var(--yellow); padding: 50px 60px; text-align: center; position: relative; }
+        .cert-logo { height: 50px; margin-bottom: 12px; }
+        .cert-org { color: var(--secondary); font-size: 16px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; }
+        .cert-title { color: var(--primary); font-size: 32px; font-weight: bold; margin: 20px 0 8px; font-family: Georgia, serif; }
+        .cert-title-en { color: var(--secondary); font-size: 20px; font-weight: bold; font-family: Georgia, serif; margin-bottom: 16px; }
+        .divider { width: 400px; height: 3px; background: var(--yellow); margin: 16px auto; }
+        .cert-body { color: #555; font-size: 16px; margin: 12px 0; }
+        .cert-name { color: var(--primary); font-size: 40px; font-weight: bold; font-family: Georgia, serif; margin: 16px 0; }
+        .cert-course { color: var(--secondary); font-size: 24px; font-weight: bold; font-family: Georgia, serif; margin: 16px 0; }
+        .cert-score { font-size: 22px; color: #333; font-weight: 600; margin: 16px 0; }
+        .score-bar { width: 250px; height: 12px; background: #E0E0E0; border-radius: 6px; margin: 8px auto; overflow: hidden; }
+        .score-fill { height: 100%; background: #28A745; border-radius: 6px; }
+        .cert-date { color: #777; font-size: 14px; margin-top: 24px; }
+        .cert-sigs { display: flex; justify-content: space-around; margin-top: 44px; }
+        .cert-sigs div { text-align: center; color: #888; font-size: 13px; }
+        .cert-sigs .line { width: 180px; border-bottom: 1px solid #ccc; margin-bottom: 8px; display: inline-block; }
+        .cert-footer { color: var(--primary); font-size: 12px; font-weight: bold; margin-top: 30px; letter-spacing: 2px; }
+        .corner { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); }
+        .corner-tl { top: 12px; left: 12px; }
+        .corner-tr { top: 12px; right: 12px; }
+        .corner-bl { bottom: 12px; left: 12px; }
+        .corner-br { bottom: 12px; right: 12px; }
+        @media print { .actions { display: none !important; } body { background: white; padding: 0; } .cert-container { box-shadow: none; } }
+        @media (max-width:768px) { .cert-inner { padding: 30px 20px; } .cert-title { font-size: 24px; } .cert-name { font-size: 28px; } .cert-course { font-size: 18px; } }
+    </style>
+</head>
+<body>
+    <div class="actions no-print">
+        <button onclick="window.print()" class="btn btn-primary">🖨 In / Print as PDF</button>
+        <a href="{{ url_for('course_detail', cid=course['id']) }}" class="btn btn-outline">← Quay lại</a>
+    </div>
+
+    <div class="cert-container">
+        <div class="cert-border">
+            <div class="cert-inner">
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+
+                <img src="https://lh3.googleusercontent.com/d/1KH0xWe9JoWkmSb2fhYvtfr8kmUN7Ggcj" alt="MANI" class="cert-logo" onerror="this.style.display='none'">
+                <div class="cert-org">MANI MEDICAL HANOI</div>
+
+                <div class="divider"></div>
+
+                <div class="cert-title">CHỨNG CHỈ HOÀN THÀNH ĐÀO TẠO</div>
+                <div class="cert-title-en">CERTIFICATE OF COMPLETION</div>
+
+                <div class="divider"></div>
+
+                <div class="cert-body">Chứng nhận rằng / This is to certify that</div>
+                <div class="cert-name">{{ user['name'] }}</div>
+
+                <div class="cert-body">Đã hoàn thành khóa đào tạo / Has successfully completed</div>
+                <div class="cert-course">"{{ course['title_vi'] or course['title_en'] }}"</div>
+
+                <div class="cert-score">
+                    Với số điểm / With a score of: {{ result['score'] }}/{{ result['total'] }}
+                </div>
+                <div class="score-bar">
+                    <div class="score-fill" style="width:{{ (result['score']/result['total']*100)|round }}%"></div>
+                </div>
+
+                <div class="cert-date">
+                    Ngày hoàn thành / Date: {{ result['completed_at'][:10] }}
+                </div>
+
+                <div class="divider" style="margin-top:30px"></div>
+
+                <div class="cert-sigs">
+                    <div>
+                        <span class="line"></span><br>
+                        Trainer / Đào tạo viên
+                    </div>
+                    <div>
+                        <span class="line"></span><br>
+                        Manager / Quản lý
+                    </div>
+                </div>
+
+                <div class="cert-footer">
+                    MANI MEDICAL HANOI &bull; Learning & Certification Platform
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ course['title_vi'] or course['title_en'] }} - MANI Learning Hub{% endblock %}
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-sm" style="margin-bottom:16px">← Quay lại</a>
+
+<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+            <span class="tag">{{ course['category'] }}</span>
+            <h2 style="color:var(--primary);margin:8px 0">{{ course['title_vi'] or course['title_en'] }}</h2>
+            {% if course['title_en'] and course['title_vi'] %}
+            <p style="color:var(--secondary);font-size:14px;margin-bottom:8px;font-style:italic">{{ course['title_en'] }}</p>
+            {% endif %}
+            <p style="color:#666;font-size:14px">{{ course['desc_vi'] or course['desc_en'] or '' }}</p>
+        </div>
+        {% if has_passed %}
+        <span class="badge badge-success" style="font-size:14px;padding:8px 20px">✓ Đã đạt / Passed</span>
+        {% endif %}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <span class="badge badge-info">Điểm đạt: {{ course['pass_score'] }}/{{ questions|length }}</span>
+        {% if course['deadline'] %}<span class="badge badge-warning">⏰ Hạn: {{ course['deadline'] }}</span>{% endif %}
+        {% if course['time_limit'] %}<span class="badge badge-info">⏱ {{ course['time_limit'] }} phút</span>{% endif %}
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <a href="#material" class="active" onclick="showTab('material',this)">📖 Tài liệu</a>
+    <a href="#quiz" onclick="showTab('quiz',this)">📝 Bài thi</a>
+    <a href="#history" onclick="showTab('history',this)">📊 Lịch sử</a>
+</div>
+
+<!-- Material Tab -->
+<div id="tab-material" class="tab-content">
+    <div class="card">
+        {% if embed_url %}
+        <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;margin-bottom:16px">
+            <iframe src="{{ embed_url }}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe>
+        </div>
+        {% endif %}
+        {% if course['pdf_url'] %}
+        <a href="{{ course['pdf_url'] }}" target="_blank" class="btn btn-secondary">📄 Xem tài liệu PDF</a>
+        {% endif %}
+        {% if not embed_url and not course['pdf_url'] %}
+        <p style="text-align:center;color:#888;padding:32px">Chưa có tài liệu được tải lên.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quiz Tab -->
+<div id="tab-quiz" class="tab-content" style="display:none">
+    <div class="card" style="text-align:center">
+        {% if questions|length == 0 %}
+        <p style="color:#888;padding:24px">Chưa có câu hỏi cho khóa học này.</p>
+        {% else %}
+        <p style="font-size:48px;margin-bottom:12px">📝</p>
+        <h3 style="color:var(--primary);margin-bottom:8px">Bài kiểm tra</h3>
+        <p style="color:#666;margin-bottom:4px">{{ questions|length }} câu hỏi • Điểm đạt: {{ course['pass_score'] }}/{{ questions|length }}</p>
+        {% if course['time_limit'] %}<p style="color:#888;font-size:13px;margin-bottom:16px">⏱ Thời gian: {{ course['time_limit'] }} phút</p>{% endif %}
+        <a href="{{ url_for('take_quiz', cid=course['id']) }}" class="btn btn-primary" style="font-size:16px;padding:14px 32px">
+            ▶ Bắt đầu thi / Start Quiz
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- History Tab -->
+<div id="tab-history" class="tab-content" style="display:none">
+    <div class="card">
+        {% if results|length == 0 %}
+        <p style="text-align:center;color:#888;padding:24px">Chưa có lịch sử thi.</p>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Ngày</th><th>Điểm</th><th>Kết quả</th><th>Thao tác</th></tr>
+                </thead>
+                <tbody>
+                    {% for r in results %}
+                    <tr>
+                        <td>{{ r['completed_at'][:16] }}</td>
+                        <td><strong>{{ r['score'] }}/{{ r['total'] }}</strong></td>
+                        <td>
+                            {% if r['passed'] %}
+                            <span class="badge badge-success">✓ Đạt</span>
+                            {% else %}
+                            <span class="badge badge-danger">✗ Không đạt</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('quiz_result', cid=course['id'], rid=r['id']) }}" class="btn btn-outline btn-sm">Xem chi tiết</a>
+                            {% if r['passed'] %}
+                            <a href="{{ url_for('download_cert', cid=course['id'], rid=r['id']) }}" class="btn btn-primary btn-sm" target="_blank">📜 Chứng chỉ</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function showTab(name, el) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tabs a').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = 'block';
+    el.classList.add('active');
+}
+</script>
+{% endblock %}

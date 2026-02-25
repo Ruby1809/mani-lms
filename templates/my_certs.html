@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Chứng chỉ - MANI Learning Hub{% endblock %}
+{% block content %}
+<h2 style="color:var(--primary);margin-bottom:20px">🏆 Chứng chỉ của tôi / My Certificates</h2>
+
+{% if certs|length == 0 %}
+<div class="card" style="text-align:center;padding:48px;color:#888">
+    <p style="font-size:48px">📜</p>
+    <p>Bạn chưa có chứng chỉ nào. Hãy hoàn thành khóa học để nhận!</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="margin-top:16px">📚 Xem khóa học</a>
+</div>
+{% else %}
+<div class="card-grid">
+    {% for c in certs %}
+    <div class="card" style="border-left:4px solid var(--yellow)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <span class="tag">{{ c['category'] }}</span>
+            <span class="badge badge-success">✓ Đạt</span>
+        </div>
+        <h4 style="color:var(--primary);margin:8px 0">{{ c['title_vi'] or c['title_en'] }}</h4>
+        <p style="color:#666;font-size:13px;margin:4px 0">Điểm: {{ c['score'] }}/{{ c['total'] }}</p>
+        <p style="color:#888;font-size:12px;margin:4px 0">Ngày: {{ c['completed_at'][:10] }}</p>
+        <a href="{{ url_for('download_cert', cid=c['course_id'], rid=c['id']) }}" target="_blank" class="btn btn-primary btn-sm" style="margin-top:12px">
+            📜 Tải chứng chỉ / Download
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

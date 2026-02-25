@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sửa' if course else 'Thêm' }} khóa học - MANI Learning Hub{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin_panel') }}#content" class="btn btn-outline btn-sm" style="margin-bottom:16px">← Quay lại</a>
+
+<div class="card">
+    <h3 style="color:var(--primary);margin-bottom:20px">
+        {{ '✏️ Sửa khóa học' if course else '➕ Thêm khóa học mới' }}
+    </h3>
+    <form method="POST">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Tên khóa học (Tiếng Việt) *</label>
+                <input type="text" name="title_vi" class="form-control" value="{{ course['title_vi'] if course else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Course Title (English)</label>
+                <input type="text" name="title_en" class="form-control" value="{{ course['title_en'] if course else '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Mô tả (Tiếng Việt)</label>
+                <textarea name="desc_vi" class="form-control">{{ course['desc_vi'] if course else '' }}</textarea>
+            </div>
+            <div class="form-group">
+                <label>Description (English)</label>
+                <textarea name="desc_en" class="form-control">{{ course['desc_en'] if course else '' }}</textarea>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Danh mục / Category</label>
+                <select name="category" class="form-control">
+                    {% for c in categories %}
+                    <option value="{{ c }}" {{ 'selected' if course and course['category'] == c }}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Hạn chót / Deadline</label>
+                <input type="date" name="deadline" class="form-control" value="{{ course['deadline'] if course else '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Video URL (YouTube / embed link)</label>
+            <input type="url" name="video_url" class="form-control" value="{{ course['video_url'] if course else '' }}" placeholder="https://youtube.com/watch?v=...">
+        </div>
+        <div class="form-group">
+            <label>PDF URL (Google Drive / direct link)</label>
+            <input type="url" name="pdf_url" class="form-control" value="{{ course['pdf_url'] if course else '' }}" placeholder="https://drive.google.com/...">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Điểm đạt / Pass Score (số câu đúng tối thiểu)</label>
+                <input type="number" name="pass_score" class="form-control" value="{{ course['pass_score'] if course else 3 }}" min="1">
+            </div>
+            <div class="form-group">
+                <label>Thời gian thi / Time Limit (phút)</label>
+                <input type="number" name="time_limit" class="form-control" value="{{ course['time_limit'] if course else 15 }}" min="1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Phòng ban đối tượng / Target Departments</label>
+            <div class="checkbox-group">
+                {% set current_groups = [] %}
+                {% if course %}
+                {% set current_groups = course['target_groups'] | from_json if course['target_groups'] else [] %}
+                {% endif %}
+                {% for d in departments %}
+                <label>
+                    <input type="checkbox" name="target_groups" value="{{ d }}"
+                        {{ 'checked' if d in current_groups or (not course and d in ['Sales', 'Marketing']) }}>
+                    {{ d }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+            <a href="{{ url_for('admin_panel') }}#content" class="btn btn-outline">Hủy / Cancel</a>
+            <button type="submit" class="btn btn-primary">💾 Lưu / Save</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
