@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ category }} - MANI Learning Hub{% endblock %}
+{% block content %}
+<h2 style="color:var(--primary);margin-bottom:16px">
+    {% if category=='Compliance' %}📜{% elif category=='SOP' %}📑{% elif category=='Product Training' %}🏥{% elif category=='Skills Training' %}🎯{% else %}📚{% endif %}
+    {{ category }}
+</h2>
+{% if courses %}
+<div class="card-grid">
+    {% for c in courses %}
+    <a href="{{ url_for('course_detail',cid=c['id']) }}" class="course-card {% if c['id'] in passed_ids %}passed{% endif %}">
+        {% if c['id'] in passed_ids %}<div style="display:flex;justify-content:flex-end"><span class="badge badge-success">✓ Đạt</span></div>{% endif %}
+        <h4>{{ c['title_vi'] or c['title_en'] }}</h4>
+        <p style="color:#777;font-size:12px;margin:4px 0 8px">{{ (c['desc_vi'] or c['desc_en'] or '')[:100] }}</p>
+        <div class="meta">
+            <span>📝 {{ q_counts.get(c['id'],0) }} câu hỏi</span>
+            {% if c['deadline'] %}<span>⏰ {{ c['deadline'] }}</span>{% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px;color:#888"><p>Chưa có khóa học nào trong danh mục này.</p></div>
+{% endif %}
+{% endblock %}
