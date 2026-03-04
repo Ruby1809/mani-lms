@@ -11,6 +11,7 @@ import random
 import string
 import base64
 import traceback
+import requests as http_requests
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -20,30 +21,120 @@ from flask import (
     session, flash, jsonify, g, make_response
 )
 
-# ═══════════════ TURSO CLOUD DB (FREE) ═══════════════
-# If TURSO_DATABASE_URL is set → use cloud DB (data never lost)
-# Otherwise → fall back to local SQLite file
-TURSO_URL = os.environ.get('TURSO_DATABASE_URL', '')
+# ═══════════════ TURSO CLOUD DB (FREE - HTTP API) ═══════════════
+TURSO_URL = os.environ.get('TURSO_DATABASE_URL', '')  # libsql://xxx.turso.io
 TURSO_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '')
-USE_TURSO = bool(TURSO_URL)
-
-try:
-    import libsql_experimental as libsql
-    HAVE_LIBSQL = True
-except ImportError:
-    HAVE_LIBSQL = False
-    if USE_TURSO:
-        print("[DB] WARNING: libsql-experimental not installed! pip install libsql-experimental")
+USE_TURSO = bool(TURSO_URL and TURSO_TOKEN)
 
 DATABASE = os.environ.get('DATABASE_PATH', 'lms.db')
-
-if USE_TURSO and HAVE_LIBSQL:
-    print(f"[DB] ☁️ Using Turso cloud database: {TURSO_URL[:50]}...")
-else:
+if not USE_TURSO:
     _render_disk = '/opt/render/project/data'
     if os.path.isdir(_render_disk):
         DATABASE = os.path.join(_render_disk, 'lms.db')
-    print(f"[DB] 💾 Using local SQLite: {DATABASE}")
+
+if USE_TURSO:
+    _http_url = TURSO_URL.replace('libsql://', 'https://').replace('wss://', 'https://')
+    if not _http_url.startswith('https://'): _http_url = 'https://' + _http_url
+    TURSO_HTTP = _http_url
+    print(f"[DB] ☁️ Turso Cloud: {TURSO_HTTP[:50]}...")
+else:
+    TURSO_HTTP = ''
+    print(f"[DB] 💾 Local SQLite: {DATABASE}")
+
+
+class TursoRow(dict):
+    """sqlite3.Row-compatible dict for Turso results."""
+    def __getitem__(self, key):
+        if isinstance(key, int): return list(self.values())[key]
+        return super().__getitem__(key)
+    def keys(self): return list(super().keys())
+
+
+class TursoCursor:
+    """Minimal cursor interface for Turso HTTP API."""
+    def __init__(self, rows=None, lastrowid=0):
+        self._rows = rows or []
+        self.lastrowid = lastrowid
+        self._idx = 0
+    def fetchone(self):
+        if self._idx < len(self._rows):
+            r = self._rows[self._idx]; self._idx += 1; return r
+        return None
+    def fetchall(self): return self._rows
+    def __iter__(self): return iter(self._rows)
+
+
+class TursoDB:
+    """Drop-in replacement for sqlite3 connection using Turso HTTP API."""
+    def __init__(self, url, token):
+        self._url = url + '/v2/pipeline'
+        self._headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
+        self.row_factory = TursoRow
+        self._last_id = 0
+
+    def execute(self, sql, params=None):
+        sql = sql.strip()
+        if sql.upper().startswith('PRAGMA'): return TursoCursor([])
+        # Handle last_insert_rowid() locally
+        if 'last_insert_rowid' in sql.lower():
+            row = TursoRow(); row[0] = self._last_id
+            return TursoCursor([row], self._last_id)        # Convert ? placeholders to Turso format
+        args = []
+        if params:
+            for p in params:
+                if p is None: args.append({"type": "null", "value": None})
+                elif isinstance(p, int): args.append({"type": "integer", "value": str(p)})
+                elif isinstance(p, float): args.append({"type": "float", "value": str(p)})
+                else: args.append({"type": "text", "value": str(p)})
+
+        body = {"requests": [
+            {"type": "execute", "stmt": {"sql": sql, "args": args}},
+            {"type": "close"}
+        ]}
+        try:
+            resp = http_requests.post(self._url, headers=self._headers, json=body, timeout=15)
+            data = resp.json()
+        except Exception as e:
+            print(f"[TURSO-ERROR] {e}")
+            return TursoCursor([])
+
+        if 'results' not in data or not data['results']:
+            return TursoCursor([])
+
+        result = data['results'][0]
+        if result.get('type') == 'error':
+            err_msg = result.get('error', {}).get('message', 'Unknown error')
+            # Ignore "already exists" errors for CREATE TABLE / ALTER TABLE
+            if 'already exists' in err_msg or 'duplicate column' in err_msg:
+                return TursoCursor([])
+            print(f"[TURSO-SQL-ERROR] {err_msg} | SQL: {sql[:80]}")
+            return TursoCursor([])
+
+        resp_data = result.get('response', {}).get('result', {})
+        cols = [c['name'] for c in resp_data.get('cols', [])]
+        rows = []
+        for row in resp_data.get('rows', []):
+            d = TursoRow()
+            for i, col in enumerate(cols):
+                val = row[i].get('value') if row[i].get('type') != 'null' else None
+                # Convert integer strings back to int
+                if val is not None and row[i].get('type') == 'integer':
+                    try: val = int(val)
+                    except: pass
+                d[col] = val
+            rows.append(d)
+
+        last_id = resp_data.get('last_insert_rowid', 0)
+        if last_id: self._last_id = last_id
+        return TursoCursor(rows, last_id)
+
+    def commit(self): pass  # HTTP API auto-commits
+    def close(self): pass
+    def executescript(self, script):
+        for stmt in script.split(';'):
+            stmt = stmt.strip()
+            if stmt: self.execute(stmt)
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
@@ -106,12 +197,12 @@ SMTP_FROM = os.environ.get('SMTP_FROM', '') or SMTP_USER
 # ═══════════════ DATABASE ═══════════════
 def _create_connection():
     """Create DB connection - Turso cloud or local SQLite."""
-    if USE_TURSO and HAVE_LIBSQL:
-        conn = libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+    if USE_TURSO:
+        return TursoDB(TURSO_HTTP, TURSO_TOKEN)
     else:
         conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+        conn.row_factory = sqlite3.Row
+        return conn
 
 def get_db():
     if 'db' not in g:
@@ -989,11 +1080,10 @@ def test_smtp():
 def db_info():
     info = {
         'db_type': 'Turso Cloud' if USE_TURSO else 'Local SQLite',
-        'turso_url': TURSO_URL[:50] + '...' if TURSO_URL else 'Not set',
+        'turso_http': TURSO_HTTP[:50] + '...' if TURSO_HTTP else 'Not set',
         'local_db_path': DATABASE,
         'local_db_exists': os.path.exists(DATABASE) if not USE_TURSO else 'N/A',
         'render_disk_exists': os.path.isdir('/opt/render/project/data'),
-        'libsql_available': HAVE_LIBSQL,
     }
     # Test connection
     try:
