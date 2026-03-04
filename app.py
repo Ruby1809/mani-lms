@@ -20,21 +20,35 @@ from flask import (
     session, flash, jsonify, g, make_response
 )
 
+# ═══════════════ TURSO CLOUD DB (FREE) ═══════════════
+# If TURSO_DATABASE_URL is set → use cloud DB (data never lost)
+# Otherwise → fall back to local SQLite file
+TURSO_URL = os.environ.get('TURSO_DATABASE_URL', '')
+TURSO_TOKEN = os.environ.get('TURSO_AUTH_TOKEN', '')
+USE_TURSO = bool(TURSO_URL)
+
+try:
+    import libsql_experimental as libsql
+    HAVE_LIBSQL = True
+except ImportError:
+    HAVE_LIBSQL = False
+    if USE_TURSO:
+        print("[DB] WARNING: libsql-experimental not installed! pip install libsql-experimental")
+
+DATABASE = os.environ.get('DATABASE_PATH', 'lms.db')
+
+if USE_TURSO and HAVE_LIBSQL:
+    print(f"[DB] ☁️ Using Turso cloud database: {TURSO_URL[:50]}...")
+else:
+    _render_disk = '/opt/render/project/data'
+    if os.path.isdir(_render_disk):
+        DATABASE = os.path.join(_render_disk, 'lms.db')
+    print(f"[DB] 💾 Using local SQLite: {DATABASE}")
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.permanent_session_lifetime = timedelta(days=7)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
-
-# ═══════════════ CRITICAL: DATABASE PATH ═══════════════
-# On Render: MUST use persistent disk path, otherwise data is lost on restart!
-# Default tries Render disk first, then falls back to local
-_render_disk = '/opt/render/project/data'
-if os.path.isdir(_render_disk):
-    _default_db = os.path.join(_render_disk, 'lms.db')
-else:
-    _default_db = 'lms.db'
-DATABASE = os.environ.get('DATABASE_PATH', _default_db)
-print(f"[DB] Using database at: {DATABASE}")
 
 # ═══════════════ DEFAULT WHITELIST ═══════════════
 DEFAULT_EMAILS = [
@@ -90,18 +104,31 @@ SMTP_FROM = os.environ.get('SMTP_FROM', '') or SMTP_USER
 
 
 # ═══════════════ DATABASE ═══════════════
+def _create_connection():
+    """Create DB connection - Turso cloud or local SQLite."""
+    if USE_TURSO and HAVE_LIBSQL:
+        conn = libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+    else:
+        conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def get_db():
     if 'db' not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA journal_mode=WAL")
-        g.db.execute("PRAGMA foreign_keys=ON")
+        g.db = _create_connection()
+        if not USE_TURSO:
+            try:
+                g.db.execute("PRAGMA journal_mode=WAL")
+                g.db.execute("PRAGMA foreign_keys=ON")
+            except: pass
     return g.db
 
 @app.teardown_appcontext
 def close_db(exc):
     db = g.pop('db', None)
-    if db: db.close()
+    if db:
+        try: db.close()
+        except: pass
 
 
 def get_allowed_emails():
@@ -114,10 +141,10 @@ def get_allowed_emails():
 
 
 def init_db():
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
-    db.executescript('''
-        CREATE TABLE IF NOT EXISTS users (
+    db = _create_connection()
+    # Create tables one by one (Turso doesn't support executescript)
+    tables = [
+        '''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL,
             name TEXT NOT NULL, department TEXT DEFAULT 'Sales & Marketing Vietnam',
@@ -126,8 +153,8 @@ def init_db():
             status TEXT DEFAULT 'active', verified INTEGER DEFAULT 0,
             verify_code TEXT, avatar_data TEXT, signature_data TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS courses (
+        )''',
+        '''CREATE TABLE IF NOT EXISTS courses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title_vi TEXT NOT NULL, title_en TEXT, desc_vi TEXT, desc_en TEXT,
             category TEXT DEFAULT 'Compliance', video_url TEXT, pdf_url TEXT,
@@ -136,53 +163,60 @@ def init_db():
             time_limit INTEGER DEFAULT 15, max_attempts INTEGER DEFAULT 3,
             lang TEXT DEFAULT 'vi', created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS questions (
+        )''',
+        '''CREATE TABLE IF NOT EXISTS questions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             course_id INTEGER NOT NULL, text TEXT NOT NULL,
             option_a TEXT NOT NULL, option_b TEXT NOT NULL,
             option_c TEXT, option_d TEXT, answer TEXT NOT NULL,
             explanation TEXT, source TEXT DEFAULT 'manual',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS results (
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_email TEXT NOT NULL, course_id INTEGER NOT NULL,
             score INTEGER NOT NULL, total INTEGER NOT NULL,
             passed INTEGER DEFAULT 0, answers_json TEXT,
             attempt_number INTEGER DEFAULT 1, is_valid INTEGER DEFAULT 1,
-            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (course_id) REFERENCES courses(id)
-        );
-        CREATE TABLE IF NOT EXISTS retest_requests (
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''',
+        '''CREATE TABLE IF NOT EXISTS retest_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             course_id INTEGER NOT NULL, target_type TEXT DEFAULT 'all',
             target_value TEXT, deadline TEXT, requested_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS allowed_emails (
+        )''',
+        '''CREATE TABLE IF NOT EXISTS allowed_emails (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL, note TEXT DEFAULT '',
             active INTEGER DEFAULT 1, added_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
-    ''')
+        )''',
+        "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
+    ]
+    for sql in tables:
+        try: db.execute(sql)
+        except Exception as e: print(f"[DB] Table create warning: {e}")
+    db.commit()
     # Safe migrations
     def add_col(table, col, typedef):
-        cols = [r[1] for r in db.execute(f"PRAGMA table_info({table})").fetchall()]
-        if col not in cols:
-            db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typedef}")
+        try:
+            cols = [r[1] for r in db.execute(f"PRAGMA table_info({table})").fetchall()]
+            if col not in cols:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typedef}")
+        except Exception as e:
+            print(f"[DB] Migration warning {table}.{col}: {e}")
     add_col('users','team',"TEXT DEFAULT 'N/A'")
     add_col('users','job_title',"TEXT DEFAULT 'Staff'")
     add_col('users','job_level',"TEXT DEFAULT 'Staff'")
     add_col('users','avatar_data',"TEXT")
     add_col('users','signature_data',"TEXT")
     # Rename avatar_url to avatar_data if needed
-    ucols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
-    if 'avatar_url' in ucols and 'avatar_data' not in ucols:
-        db.execute("ALTER TABLE users RENAME COLUMN avatar_url TO avatar_data")
+    try:
+        ucols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+        if 'avatar_url' in ucols and 'avatar_data' not in ucols:
+            db.execute("ALTER TABLE users RENAME COLUMN avatar_url TO avatar_data")
+    except: pass
     add_col('courses','quiz_count',"INTEGER DEFAULT 0")
     add_col('courses','max_attempts',"INTEGER DEFAULT 3")
     add_col('questions','source',"TEXT DEFAULT 'manual'")
@@ -215,8 +249,11 @@ def init_db():
                   ("Tần suất kiểm tra thiết bị an toàn?","1 năm/lần","6 tháng/lần","Mỗi tháng","Khi hỏng","c","Kiểm tra hàng tháng."),
                   ("Ai chịu trách nhiệm an toàn?","Ban quản lý","Bộ phận an toàn","Mọi nhân viên","Khách hàng","c","Mọi nhân viên.")]:
             db.execute("INSERT INTO questions (course_id,text,option_a,option_b,option_c,option_d,answer,explanation,source) VALUES (?,?,?,?,?,?,?,?,?)",(cid,*q,"sample"))
-    db.commit(); db.close()
-    print(f"[DB] Initialized at {DATABASE}")
+    db.commit()
+    try: db.close()
+    except: pass
+    db_type = "Turso Cloud" if USE_TURSO else f"Local SQLite ({DATABASE})"
+    print(f"[DB] ✅ Initialized: {db_type}")
 
 
 # ═══════════════ HELPERS ═══════════════
@@ -618,23 +655,40 @@ def take_quiz(cid):
         flash(f'Hết {max_att} lượt.','error'); return redirect(url_for('course_detail',cid=cid))
     qc = course['quiz_count'] or len(allq); qc = min(qc,len(allq)) or len(allq)
     if request.method == 'POST':
-        qids = [x.strip() for x in request.form.get('question_ids','').split(',') if x.strip()]
-        qs = [db.execute("SELECT * FROM questions WHERE id=?",(int(x),)).fetchone() for x in qids]
-        qs = [q for q in qs if q]
-        score,ans = 0,{}
-        for q in qs:
-            a = request.form.get(f'q_{q["id"]}',''); ans[str(q['id'])] = a
-            if a == q['answer']: score += 1
-        passed = 1 if score >= (course['pass_score'] or 1) else 0
-        if ai['has_retest_request']:
-            db.execute("UPDATE results SET is_valid=0 WHERE user_email=? AND course_id=?",(user['email'],cid))
-        na = 1 if ai['has_retest_request'] else ai['attempt_count']+1
-        db.execute("INSERT INTO results (user_email,course_id,score,total,passed,answers_json,attempt_number) VALUES (?,?,?,?,?,?,?)",
-                   (user['email'],cid,score,len(qs),passed,json.dumps(ans),na))
-        db.commit(); rid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-        if passed:
-            send_certificate_email(user['email'],user['name'],course['title_vi'] or course['title_en'],score,len(qs),datetime.now().strftime('%d/%m/%Y'))
-        return redirect(url_for('quiz_result',cid=cid,rid=rid))
+        try:
+            qids = [x.strip() for x in request.form.get('question_ids','').split(',') if x.strip()]
+            qs = [db.execute("SELECT * FROM questions WHERE id=?",(int(x),)).fetchone() for x in qids]
+            qs = [q for q in qs if q]
+            score,ans = 0,{}
+            for q in qs:
+                a = request.form.get(f'q_{q["id"]}',''); ans[str(q['id'])] = a
+                if a == q['answer']: score += 1
+            passed = 1 if score >= (course['pass_score'] or 1) else 0
+            if ai['has_retest_request']:
+                db.execute("UPDATE results SET is_valid=0 WHERE user_email=? AND course_id=?",(user['email'],cid))
+            na = 1 if ai['has_retest_request'] else ai['attempt_count']+1
+            cur = db.execute("INSERT INTO results (user_email,course_id,score,total,passed,answers_json,attempt_number) VALUES (?,?,?,?,?,?,?)",
+                       (user['email'],cid,score,len(qs),passed,json.dumps(ans),na))
+            db.commit()
+            # Get inserted ID - try cursor.lastrowid first, then fallback
+            rid = getattr(cur, 'lastrowid', None)
+            if not rid:
+                rid = db.execute("SELECT id FROM results WHERE user_email=? AND course_id=? ORDER BY id DESC LIMIT 1",
+                                 (user['email'],cid)).fetchone()['id']
+            if passed:
+                try: send_certificate_email(user['email'],user['name'],course['title_vi'] or course['title_en'],score,len(qs),datetime.now().strftime('%d/%m/%Y'))
+                except: pass
+            return redirect(url_for('quiz_result',cid=cid,rid=rid))
+        except Exception as e:
+            print(f"[QUIZ-ERROR] {e}")
+            db.commit()  # commit whatever was saved
+            # Try to find the result anyway
+            latest = db.execute("SELECT id FROM results WHERE user_email=? AND course_id=? ORDER BY id DESC LIMIT 1",
+                                (user['email'],cid)).fetchone()
+            if latest:
+                return redirect(url_for('quiz_result',cid=cid,rid=latest['id']))
+            flash('Đã lưu kết quả. Vui lòng kiểm tra lại.','warning')
+            return redirect(url_for('course_detail',cid=cid))
     ql = list(allq); random.shuffle(ql)
     return render_template('quiz.html',user=user,course=course,questions=ql[:qc])
 
@@ -933,9 +987,24 @@ def test_smtp():
 @app.route('/admin/db-info')
 @admin_only
 def db_info():
-    info = {'db_path':DATABASE,'db_exists':os.path.exists(DATABASE),'db_size':os.path.getsize(DATABASE) if os.path.exists(DATABASE) else 0,
-            'render_disk_exists':os.path.isdir('/opt/render/project/data'),
-            'env_db_path':os.environ.get('DATABASE_PATH','not set')}
+    info = {
+        'db_type': 'Turso Cloud' if USE_TURSO else 'Local SQLite',
+        'turso_url': TURSO_URL[:50] + '...' if TURSO_URL else 'Not set',
+        'local_db_path': DATABASE,
+        'local_db_exists': os.path.exists(DATABASE) if not USE_TURSO else 'N/A',
+        'render_disk_exists': os.path.isdir('/opt/render/project/data'),
+        'libsql_available': HAVE_LIBSQL,
+    }
+    # Test connection
+    try:
+        db = get_db()
+        uc = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        cc = db.execute("SELECT COUNT(*) FROM courses").fetchone()[0]
+        info['users_count'] = uc
+        info['courses_count'] = cc
+        info['connection'] = 'OK'
+    except Exception as e:
+        info['connection'] = f'ERROR: {e}'
     return jsonify(info)
 
 

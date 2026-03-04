@@ -7,11 +7,10 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_PATH
-        value: /opt/render/project/data/lms.db
       - key: PYTHON_VERSION
         value: 3.11.0
-    disk:
-      name: lms-data
-      mountPath: /opt/render/project/data
-      sizeGB: 1
+      # Turso Cloud Database (FREE - data persistent)
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
